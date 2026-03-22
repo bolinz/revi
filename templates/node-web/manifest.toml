@@ -1,0 +1,7 @@
+id = "node-web"
+kind = "node-web"
+display_name = "Node / Web"
+description = "Node-based web scaffold with CI checks and tag-driven GitHub release placeholder."
+default_runtime = "node22"
+checks = ["npm install", "npm run ci"]
+release_notes = ["GitHub Release is created from v* tags.", "Connect the release to your target hosting platform."]

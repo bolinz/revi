@@ -1,0 +1,109 @@
+use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StarterConfig {
+    pub schema_version: u32,
+    pub project: ProjectConfig,
+    pub workflow: WorkflowConfig,
+    pub bootstrap: BootstrapConfig,
+    pub github: GithubConfig,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProjectConfig {
+    pub name: String,
+    pub slug: String,
+    pub template: TemplateKind,
+    pub path: PathBuf,
+    pub description: String,
+    pub version: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowConfig {
+    pub branch_strategy: BranchStrategy,
+    pub release: ReleaseConfig,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReleaseConfig {
+    pub channel: ReleaseChannel,
+    pub registry: bool,
+    pub github_release: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BootstrapConfig {
+    pub init_git: bool,
+    pub initial_commit: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GithubConfig {
+    pub enabled: bool,
+    pub create_repo: bool,
+    pub owner: Option<String>,
+    pub repo: Option<String>,
+    pub push_after_create: bool,
+    pub codeowners: bool,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TemplateKind {
+    PythonService,
+    NodeWeb,
+    DesktopTauri,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum BranchStrategy {
+    LightweightRelease,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ReleaseChannel {
+    GithubReleaseAndRegistry,
+}
+
+impl StarterConfig {
+    pub fn load(path: &Path) -> Result<Self> {
+        let raw = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read config {}", path.display()))?;
+        let config = toml::from_str(&raw)
+            .with_context(|| format!("failed to parse TOML {}", path.display()))?;
+        Ok(config)
+    }
+
+    pub fn save_to(&self, path: &Path) -> Result<()> {
+        let raw = toml::to_string_pretty(self).context("failed to encode config")?;
+        write_if_changed(path, &raw)
+    }
+}
+
+pub fn write_if_changed(path: &Path, content: &str) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    match std::fs::read_to_string(path) {
+        Ok(existing) if existing == content => return Ok(()),
+        Ok(_) | Err(_) => {}
+    }
+    std::fs::write(path, content).with_context(|| format!("failed to write {}", path.display()))
+}
+
+impl TemplateKind {
+    pub fn template_id(self) -> &'static str {
+        match self {
+            Self::PythonService => "python-service",
+            Self::NodeWeb => "node-web",
+            Self::DesktopTauri => "desktop-tauri",
+        }
+    }
+}

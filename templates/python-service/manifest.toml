@@ -1,0 +1,7 @@
+id = "python-service"
+kind = "python-service"
+display_name = "Python Service / Agent"
+description = "Python service scaffold with pytest checks and optional container release workflow."
+default_runtime = "python3.11"
+checks = ["python3 -m pip install -e \".[dev]\"", "pytest -q"]
+release_notes = ["Container images are published with latest and sha-* tags.", "Document deployment changes in the release notes."]

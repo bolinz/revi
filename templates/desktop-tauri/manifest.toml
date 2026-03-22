@@ -1,0 +1,7 @@
+id = "desktop-tauri"
+kind = "desktop-tauri"
+display_name = "Desktop / Tauri"
+description = "Tauri desktop scaffold with multi-platform GitHub release workflow."
+default_runtime = "node22 + rust"
+checks = ["npm install", "npm run ci", "npm run tauri build"]
+release_notes = ["Desktop bundles are produced per platform matrix.", "Signing and notarization should be added before production release."]
