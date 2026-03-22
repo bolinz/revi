@@ -2,6 +2,14 @@
 
 `Revi` is an AI-native bootstrap and release tool for code projects.
 
+## Install
+
+```bash
+cargo run -- --help
+```
+
+Current releases are published from Git tags. GitHub Releases are expected to include automated multi-platform binaries starting with `v0.1.1`.
+
 ## Commands
 
 ```bash
@@ -26,13 +34,38 @@ Each generated project includes:
 - `revi.toml`
 - optional `.github` workflows and issue/PR templates
 
-## Workflow Defaults
+## Git Flow
 
-- `main` stays releasable
-- feature branches use `feat/<name>`
+- `main` is the only long-lived branch and should stay releasable
+- feature work uses `feat/<name>`
 - bug fixes use `fix/<name>`
-- urgent release blockers use `hotfix/<name>`
-- releases are triggered from `vX.Y.Z` tags
+- urgent release fixes use `hotfix/<name>`
+- official releases are created from `vX.Y.Z` tags
+
+Detailed contributor and release rules live in [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Branch Protection
+
+- `main` should be protected in GitHub
+- pull requests are the default path for merging changes
+- at least one approval is required before merge
+- required CI checks must pass before merge
+- force-pushes and branch deletion are disabled
+
+## Release Policy
+
+- Versioning follows semantic versioning
+- Releases are cut manually by tagging `vX.Y.Z`
+- `main` is the single source of truth for the next release
+- GitHub Actions publishes release assets and notes from tag pushes
+- `v0.1.0` is the initial source-first public release
+
+## Project Files
+
+- License: [LICENSE](./LICENSE)
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
+- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Security policy: [SECURITY.md](./SECURITY.md)
 
 ## Notes
 
