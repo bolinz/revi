@@ -34,6 +34,15 @@ pub fn scaffold(config: &StarterConfig) -> Result<PathBuf> {
     Ok(project_dir)
 }
 
+#[derive(Clone, Debug)]
+struct LocalCommands {
+    install: String,
+    start: String,
+    validate: String,
+    release_prep: String,
+    stack_specific: String,
+}
+
 fn render_context(config: &StarterConfig, runtime: &str) -> BTreeMap<&'static str, String> {
     let mut ctx = BTreeMap::new();
     ctx.insert("project_name", config.project.name.clone());
@@ -56,9 +65,10 @@ fn build_files(
     release_notes: &[String],
 ) -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
+    let commands = local_commands(config);
     let readme_content = match config.project.template {
-        TemplateKind::GenericProject => generic_readme(config, checks),
-        _ => readme(config, checks),
+        TemplateKind::GenericProject => generic_readme(config, checks, &commands),
+        _ => readme(config, checks, &commands),
     };
     files.insert(
         ".gitignore".to_string(),
@@ -82,11 +92,6 @@ fn build_files(
                 files.insert("docs/notes/.gitkeep".to_string(), String::new());
                 files.insert("docs/runbooks/.gitkeep".to_string(), String::new());
             }
-            if config.generic.agent_context_files {
-                files.insert("docs/PROJECT_BRIEF.md".to_string(), generic_project_brief());
-                files.insert("docs/ARCHITECTURE.md".to_string(), generic_architecture());
-                files.insert("docs/DECISIONS.md".to_string(), generic_decisions());
-            }
         }
         TemplateKind::PythonService => {
             files.insert(
@@ -94,6 +99,7 @@ fn build_files(
                 render(&python_pyproject(config), ctx),
             );
             files.insert("src/__init__.py".to_string(), String::new());
+            files.insert("src/main.py".to_string(), python_main());
             files.insert("tests/test_smoke.py".to_string(), python_test());
         }
         TemplateKind::NodeWeb => {
@@ -128,6 +134,27 @@ fn build_files(
                 "src-tauri/tauri.conf.json".to_string(),
                 render(&tauri_conf(config), ctx),
             );
+        }
+    }
+
+    if should_emit_project_context(config) {
+        files.insert("docs/PROJECT_BRIEF.md".to_string(), project_brief(config));
+        files.insert("docs/ARCHITECTURE.md".to_string(), architecture_doc(config));
+        files.insert("docs/DECISIONS.md".to_string(), decisions_doc(config));
+    }
+
+    if config.ai_tools.enabled {
+        if config.ai_tools.tool_docs {
+            files.insert("docs/AI_TOOLS.md".to_string(), ai_tools_doc(config, &commands));
+        }
+        if config.ai_tools.codex {
+            files.insert("AGENTS.md".to_string(), agents_md(config, &commands));
+        }
+        if config.ai_tools.claude_code {
+            files.insert("CLAUDE.md".to_string(), claude_md(config, &commands));
+        }
+        if config.ai_tools.gemini_cli {
+            files.insert("GEMINI.md".to_string(), gemini_md(config, &commands));
         }
     }
 
@@ -167,12 +194,63 @@ fn build_files(
     files
 }
 
+fn should_emit_project_context(config: &StarterConfig) -> bool {
+    match config.project.template {
+        TemplateKind::GenericProject => config.generic.agent_context_files,
+        _ => config.ai_tools.enabled && config.ai_tools.tool_docs,
+    }
+}
+
 fn render(template: &str, ctx: &BTreeMap<&'static str, String>) -> String {
     let mut output = template.to_string();
     for (key, value) in ctx {
         output = output.replace(&format!("{{{{{key}}}}}"), value);
     }
     output
+}
+
+fn local_commands(config: &StarterConfig) -> LocalCommands {
+    match config.project.template {
+        TemplateKind::GenericProject => LocalCommands {
+            install: "Choose your runtime first, then add the install command here.".to_string(),
+            start: "Choose a stack-specific start command after selecting your language or framework."
+                .to_string(),
+            validate: "Replace this with your chosen test or validation command.".to_string(),
+            release_prep: "Replace placeholder validation and packaging steps before cutting a release."
+                .to_string(),
+            stack_specific:
+                "This template is intentionally stack-agnostic. Define install, run, test, build, and publish commands once the stack is chosen."
+                    .to_string(),
+        },
+        TemplateKind::PythonService => LocalCommands {
+            install: "python -m pip install -e \".[dev]\"".to_string(),
+            start: "python src/main.py".to_string(),
+            validate: "pytest -q".to_string(),
+            release_prep:
+                "pytest -q && docker build -t ghcr.io/<owner>/<repo>:latest .".to_string(),
+            stack_specific:
+                "Swap the placeholder service entrypoint for your framework of choice if you move beyond the generated smoke skeleton."
+                    .to_string(),
+        },
+        TemplateKind::NodeWeb => LocalCommands {
+            install: "npm install".to_string(),
+            start: "npm run dev".to_string(),
+            validate: "npm run ci".to_string(),
+            release_prep: "npm run ci".to_string(),
+            stack_specific:
+                "Wire hosting or deployment commands into the release workflow after choosing your target platform."
+                    .to_string(),
+        },
+        TemplateKind::DesktopTauri => LocalCommands {
+            install: "npm install".to_string(),
+            start: "npm run dev".to_string(),
+            validate: "npm run ci".to_string(),
+            release_prep: "npm run ci && npm run tauri build".to_string(),
+            stack_specific:
+                "Add signing, notarization, or updater setup before shipping production desktop builds."
+                    .to_string(),
+        },
+    }
 }
 
 fn gitignore(kind: TemplateKind) -> &'static str {
@@ -190,12 +268,13 @@ fn changelog() -> &'static str {
     "# Changelog\n\n## 0.1.0 - TBD\n\n- Initial scaffold generated by revi\n"
 }
 
-fn readme(config: &StarterConfig, checks: &[String]) -> String {
+fn readme(config: &StarterConfig, checks: &[String], commands: &LocalCommands) -> String {
     let checks = checks
         .iter()
         .map(|item| format!("- `{item}`"))
         .collect::<Vec<_>>()
         .join("\n");
+    let command_section = command_section(config, commands);
     let release_targets = match config.project.template {
         TemplateKind::GenericProject => {
             "- Source-first GitHub Release by default\n- Add stack-specific build or publish steps after choosing a language or framework".to_string()
@@ -210,12 +289,13 @@ fn readme(config: &StarterConfig, checks: &[String]) -> String {
             "- Multi-platform desktop bundle release via GitHub Releases\n- Tag-driven Tauri publish workflow".to_string()
         }
     };
+    let ai_section = ai_entrypoint_section(config);
     format!(
-        "# {{{{project_name}}}}\n\n{{{{project_description}}}}\n\n## Template\n\n- Kind: `{{{{template_kind}}}}`\n- Runtime: `{{{{default_runtime}}}}`\n- Version: `{{{{project_version}}}}`\n\n## Git Workflow\n\n- Stable branch: `main`\n- Feature branches: `feat/<name>`\n- Bugfix branches: `fix/<name>`\n- Release blockers: `hotfix/<name>`\n- Release tags: `vX.Y.Z`\n\n## Local Checks\n\n{checks}\n\n## Release\n\n{release_targets}\n\nRelease checklist:\n1. Merge work back to `main`\n2. Update version and `CHANGELOG.md`\n3. Tag `{{{{release_tag_example}}}}`\n4. Push `main` and the tag\n"
+        "# {{{{project_name}}}}\n\n{{{{project_description}}}}\n\n## Template\n\n- Kind: `{{{{template_kind}}}}`\n- Runtime: `{{{{default_runtime}}}}`\n- Version: `{{{{project_version}}}}`\n\n## Git Workflow\n\n- Stable branch: `main`\n- Feature branches: `feat/<name>`\n- Bugfix branches: `fix/<name>`\n- Release blockers: `hotfix/<name>`\n- Release tags: `vX.Y.Z`\n\n## Commands\n\n{command_section}\n\n## Local Checks\n\n{checks}\n\n{ai_section}\n## Release\n\n{release_targets}\n\nRelease checklist:\n1. Merge work back to `main`\n2. Update version and `CHANGELOG.md`\n3. Tag `{{{{release_tag_example}}}}`\n4. Push `main` and the tag\n"
     )
 }
 
-fn generic_readme(config: &StarterConfig, checks: &[String]) -> String {
+fn generic_readme(config: &StarterConfig, checks: &[String], commands: &LocalCommands) -> String {
     let checks = checks
         .iter()
         .map(|item| format!("- `{item}`"))
@@ -249,8 +329,43 @@ fn generic_readme(config: &StarterConfig, checks: &[String]) -> String {
     } else {
         "- Add a `scripts/` directory later if the project needs repeatable local automation"
     };
+    let ai_section = ai_entrypoint_section(config);
     format!(
-        "# {{{{project_name}}}}\n\n{{{{project_description}}}}\n\n## Template\n\n- Kind: `{{{{template_kind}}}}`\n- Runtime: `{{{{default_runtime}}}}`\n- Version: `{{{{project_version}}}}`\n\n## Git Workflow\n\n- Stable branch: `main`\n- Feature branches: `feat/<name>`\n- Bugfix branches: `fix/<name>`\n- Release blockers: `hotfix/<name>`\n- Release tags: `vX.Y.Z`\n\n## Agent Context\n\n{docs_section}\n{scripts_section}\n\n## Local Checks\n\n{checks}\n\n## Next Steps\n\n{next_steps}\n\n## Release\n\n- Source-first GitHub Release by default\n- Add stack-specific build or publish steps after choosing a language or framework\n"
+        "# {{{{project_name}}}}\n\n{{{{project_description}}}}\n\n## Template\n\n- Kind: `{{{{template_kind}}}}`\n- Runtime: `{{{{default_runtime}}}}`\n- Version: `{{{{project_version}}}}`\n\n## Git Workflow\n\n- Stable branch: `main`\n- Feature branches: `feat/<name>`\n- Bugfix branches: `fix/<name>`\n- Release blockers: `hotfix/<name>`\n- Release tags: `vX.Y.Z`\n\n## Agent Context\n\n{docs_section}\n{scripts_section}\n\n## Commands\n\n{}\n\n## Local Checks\n\n{checks}\n\n{ai_section}## Next Steps\n\n{next_steps}\n\n## Release\n\n- Source-first GitHub Release by default\n- Add stack-specific build or publish steps after choosing a language or framework\n",
+        command_section(config, commands)
+    )
+}
+
+fn ai_entrypoint_section(config: &StarterConfig) -> String {
+    if !config.ai_tools.enabled {
+        return String::new();
+    }
+
+    let mut files = Vec::new();
+    if config.ai_tools.codex {
+        files.push("- `AGENTS.md`: Codex entrypoint");
+    }
+    if config.ai_tools.claude_code {
+        files.push("- `CLAUDE.md`: Claude Code memory");
+    }
+    if config.ai_tools.gemini_cli {
+        files.push("- `GEMINI.md`: Gemini CLI context");
+    }
+    if config.ai_tools.tool_docs {
+        files.push("- `docs/AI_TOOLS.md`: shared tool compatibility guide");
+    }
+
+    format!("## AI Tool Entry Points\n\n{}\n\n", files.join("\n"))
+}
+
+fn command_section(config: &StarterConfig, commands: &LocalCommands) -> String {
+    let stack_note = match config.project.template {
+        TemplateKind::GenericProject => format!("\nStack note: {}\n", commands.stack_specific),
+        _ => String::new(),
+    };
+    format!(
+        "- Install: `{}`\n- Start: `{}`\n- Validate: `{}`\n- Release prep: `{}`{}\n",
+        commands.install, commands.start, commands.validate, commands.release_prep, stack_note
     )
 }
 
@@ -276,6 +391,146 @@ fn contributing(config: &StarterConfig, checks: &[String]) -> String {
     };
     format!(
         "# Contributing\n\n## Branching\n\n- `main` is always intended to stay releasable\n- use `feat/<topic>` for new work\n- use `fix/<topic>` for bug fixes\n- use `hotfix/<topic>` for release blockers\n\n## Pull Requests\n\n- keep changes scoped\n- update docs when behavior changes\n- include validation steps in the PR body\n\n## Validation\n\nRun before opening a PR:\n{checks}\n\n## Change Types Requiring Extra Care\n\n{extra_care}\n\n## Release Flow\n\n1. Land changes on `main`\n2. Update versioned files together\n3. Create a release commit if needed\n4. Tag `vX.Y.Z`\n5. Push `main` and the tag\n"
+    )
+}
+
+fn project_brief(config: &StarterConfig) -> String {
+    match config.project.template {
+        TemplateKind::GenericProject => generic_project_brief(),
+        _ => format!(
+            "# Project Brief\n\n## Goal\n\nDescribe the outcome this `{}` project should deliver.\n\n## Users\n\nList the primary users, operators, or internal teams.\n\n## In Scope\n\n- Core functionality for the selected template\n- Local validation and release flow generated by Revi\n\n## Out Of Scope\n\n- Major stack changes that are not yet documented here\n- Release automation beyond the generated defaults\n\n## Current State\n\nThis repository was generated from Revi's `{}` template with starter commands, repository conventions, and AI coding CLI compatibility files.\n",
+            config.project.template.template_id(),
+            config.project.template.template_id()
+        ),
+    }
+}
+
+fn architecture_doc(config: &StarterConfig) -> String {
+    match config.project.template {
+        TemplateKind::GenericProject => generic_architecture(),
+        TemplateKind::PythonService => "# Architecture\n\n## Current Structure\n\n- `src/`: Python service code and entrypoint placeholder\n- `tests/`: smoke validation\n- `docs/`: project, architecture, and decision context\n\n## Planned Modules\n\nDescribe the service modules, adapters, and deployment boundaries here.\n\n## Open Questions\n\n- Which framework will own the runtime entrypoint?\n- Which deployment target should the release workflow publish to?\n"
+            .to_string(),
+        TemplateKind::NodeWeb => "# Architecture\n\n## Current Structure\n\n- `src/`: application entrypoint\n- `dist/`: generated static output placeholder\n- `tests/`: smoke validation\n- `docs/`: project, architecture, and decision context\n\n## Planned Modules\n\nDescribe routing, UI modules, APIs, and hosting boundaries here.\n\n## Open Questions\n\n- Which web framework or bundler should replace the starter scaffold?\n- Which hosting platform should the release flow target?\n"
+            .to_string(),
+        TemplateKind::DesktopTauri => "# Architecture\n\n## Current Structure\n\n- `src/`: frontend placeholder code\n- `dist/`: generated frontend output placeholder\n- `src-tauri/`: Rust desktop shell and Tauri config\n- `docs/`: project, architecture, and decision context\n\n## Planned Modules\n\nDescribe frontend, native, and packaging boundaries here.\n\n## Open Questions\n\n- Which frontend stack should back the Tauri shell?\n- Which signing or update channel requirements apply before release?\n"
+            .to_string(),
+    }
+}
+
+fn decisions_doc(config: &StarterConfig) -> String {
+    let pending = match config.project.template {
+        TemplateKind::GenericProject => {
+            "- Primary language or framework\n- Test command and CI stack\n- Build and release packaging strategy"
+        }
+        TemplateKind::PythonService => {
+            "- Service framework and runtime entrypoint\n- Container/deployment target\n- Required observability or background job integrations"
+        }
+        TemplateKind::NodeWeb => {
+            "- Framework or bundler choice\n- Hosting target\n- Client-side versus server-side rendering split"
+        }
+        TemplateKind::DesktopTauri => {
+            "- Frontend framework selection\n- Signing and notarization requirements\n- Update distribution strategy"
+        }
+    };
+    format!(
+        "# Decisions\n\n## Confirmed\n\n- Lightweight release flow on `main`\n- Tag-based releases using `vX.Y.Z`\n- AI coding CLI compatibility files generated by Revi\n\n## Pending\n\n{pending}\n"
+    )
+}
+
+fn ai_tools_doc(config: &StarterConfig, commands: &LocalCommands) -> String {
+    let mut tools = Vec::new();
+    if config.ai_tools.codex {
+        tools.push("- Codex reads `AGENTS.md`");
+    }
+    if config.ai_tools.claude_code {
+        tools.push("- Claude Code reads `CLAUDE.md`");
+    }
+    if config.ai_tools.gemini_cli {
+        tools.push("- Gemini CLI reads `GEMINI.md`");
+    }
+    let docs = if should_emit_project_context(config) {
+        "- `README.md`\n- `docs/PROJECT_BRIEF.md`\n- `docs/ARCHITECTURE.md`\n- `docs/DECISIONS.md`"
+            .to_string()
+    } else {
+        "- `README.md`\n- Add `docs/PROJECT_BRIEF.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` before handing the repository to an AI agent."
+            .to_string()
+    };
+    let command_section = if config.ai_tools.command_helpers {
+        format!(
+            "## Command Helpers\n\n- Install: `{}`\n- Start: `{}`\n- Validate: `{}`\n- Release prep: `{}`\n\nStack-specific note: {}\n",
+            commands.install, commands.start, commands.validate, commands.release_prep, commands.stack_specific
+        )
+    } else {
+        String::new()
+    };
+    format!(
+        "# AI Tools\n\n## Supported Tools\n\n{}\n\n## Recommended Read Order\n\n{}\n\n{}\n## Git And Release Rules\n\n- `main` stays releasable\n- Use `feat/<name>`, `fix/<name>`, and `hotfix/<name>` branches\n- Cut releases from `vX.Y.Z` tags\n",
+        tools.join("\n"),
+        docs,
+        command_section
+    )
+}
+
+fn agents_md(config: &StarterConfig, commands: &LocalCommands) -> String {
+    tool_file(
+        config,
+        commands,
+        "AGENTS.md",
+        "Codex should use this file as the repo-level entrypoint before making changes.",
+        "Codex",
+    )
+}
+
+fn claude_md(config: &StarterConfig, commands: &LocalCommands) -> String {
+    tool_file(
+        config,
+        commands,
+        "CLAUDE.md",
+        "Claude Code should treat this file as project memory and keep it aligned with the shared docs.",
+        "Claude Code",
+    )
+}
+
+fn gemini_md(config: &StarterConfig, commands: &LocalCommands) -> String {
+    tool_file(
+        config,
+        commands,
+        "GEMINI.md",
+        "Gemini CLI should read this file first, then fall through to the shared repo docs.",
+        "Gemini CLI",
+    )
+}
+
+fn tool_file(
+    config: &StarterConfig,
+    commands: &LocalCommands,
+    file_name: &str,
+    intro: &str,
+    tool_name: &str,
+) -> String {
+    let context = if should_emit_project_context(config) {
+        "- `README.md`\n- `docs/PROJECT_BRIEF.md`\n- `docs/ARCHITECTURE.md`\n- `docs/DECISIONS.md`\n"
+            .to_string()
+    } else {
+        "- `README.md`\n- Add `docs/PROJECT_BRIEF.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` before asking an AI tool to make structural decisions.\n".to_string()
+    };
+    let command_section = if config.ai_tools.command_helpers {
+        format!(
+            "## Commands\n\n- Install: `{}`\n- Start: `{}`\n- Validate: `{}`\n- Release prep: `{}`\n\nStack-specific note: {}\n\n",
+            commands.install, commands.start, commands.validate, commands.release_prep, commands.stack_specific
+        )
+    } else {
+        String::new()
+    };
+    format!(
+        "# {file_name}\n\n{intro}\n\n## Tool\n\n- Consumer: `{tool_name}`\n- Template: `{}`\n- Runtime default: `{}`\n\n## Read First\n\n{context}\n## Repo Workflow\n\n- `main` must stay releasable\n- Use `feat/<name>`, `fix/<name>`, or `hotfix/<name>` for changes\n- Release from `vX.Y.Z` tags\n\n{command_section}## Guidance\n\n- Treat the shared docs as the source of truth instead of duplicating project context here.\n- Update docs when behavior, architecture, or release assumptions change.\n",
+        config.project.template.template_id(),
+        match config.project.template {
+            TemplateKind::GenericProject => "custom",
+            TemplateKind::PythonService => "python3.11",
+            TemplateKind::NodeWeb => "node22",
+            TemplateKind::DesktopTauri => "node22 + rust",
+        }
     )
 }
 
@@ -314,6 +569,10 @@ fn tauri_conf(config: &StarterConfig) -> String {
     )
 }
 
+fn python_main() -> String {
+    "def main() -> None:\n    print('hello from revi python-service template')\n\n\nif __name__ == '__main__':\n    main()\n".to_string()
+}
+
 fn python_test() -> String {
     "def test_smoke() -> None:\n    assert True\n".to_string()
 }
@@ -325,11 +584,6 @@ fn generic_project_brief() -> String {
 
 fn generic_architecture() -> String {
     "# Architecture\n\n## Current Structure\n\n- `src/`: implementation entry point once the stack is chosen\n- `docs/`: product, architecture, and decision context\n- `scripts/`: optional automation hooks if enabled\n\n## Planned Modules\n\nDescribe the major modules after the stack is selected.\n\n## Open Questions\n\n- \n"
-        .to_string()
-}
-
-fn generic_decisions() -> String {
-    "# Decisions\n\n## Confirmed\n\n- Lightweight release flow on `main`\n- Tag-based releases using `vX.Y.Z`\n\n## Pending\n\n- Primary language or framework\n- Test command and CI stack\n- Build and release packaging strategy\n"
         .to_string()
 }
 
@@ -406,8 +660,9 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::config::{
-        BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig, ProjectConfig,
-        ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
+        AiToolsConfig, BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig,
+        ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind,
+        WorkflowConfig,
     };
 
     use super::scaffold;
@@ -447,6 +702,7 @@ mod tests {
                 push_after_create: false,
                 codeowners: github,
             },
+            ai_tools: AiToolsConfig::default(),
             generic: GenericTemplateConfig::default(),
         }
     }
@@ -458,7 +714,13 @@ mod tests {
         let config = test_config(target.clone(), TemplateKind::PythonService, true);
         scaffold(&config).expect("scaffold");
         assert!(target.join("pyproject.toml").exists());
+        assert!(target.join("src/main.py").exists());
         assert!(target.join(".github/workflows/ci.yml").exists());
+        assert!(target.join("AGENTS.md").exists());
+        assert!(target.join("CLAUDE.md").exists());
+        assert!(target.join("GEMINI.md").exists());
+        assert!(target.join("docs/AI_TOOLS.md").exists());
+        assert!(target.join("docs/PROJECT_BRIEF.md").exists());
         assert!(target.join("revi.toml").exists());
     }
 
@@ -470,6 +732,8 @@ mod tests {
         scaffold(&config).expect("scaffold");
         assert!(target.join("package.json").exists());
         assert!(!target.join(".github").exists());
+        assert!(target.join("AGENTS.md").exists());
+        assert!(target.join("docs/AI_TOOLS.md").exists());
     }
 
     #[test]
@@ -480,6 +744,7 @@ mod tests {
         scaffold(&config).expect("scaffold");
         assert!(target.join("src-tauri/Cargo.toml").exists());
         assert!(target.join(".github/workflows/release.yml").exists());
+        assert!(target.join("GEMINI.md").exists());
     }
 
     #[test]
@@ -493,6 +758,8 @@ mod tests {
         assert!(target.join("docs/PROJECT_BRIEF.md").exists());
         assert!(target.join("scripts/.gitkeep").exists());
         assert!(target.join(".github/workflows/ci.yml").exists());
+        assert!(target.join("AGENTS.md").exists());
+        assert!(target.join("docs/AI_TOOLS.md").exists());
         assert!(!target.join("package.json").exists());
         assert!(!target.join("pyproject.toml").exists());
     }
@@ -513,5 +780,31 @@ mod tests {
         assert!(!target.join("scripts").exists());
         assert!(!target.join(".github/workflows/ci.yml").exists());
         assert!(target.join(".github/pull_request_template.md").exists());
+        assert!(target.join("AGENTS.md").exists());
+    }
+
+    #[test]
+    fn omits_ai_tool_files_when_disabled() {
+        let temp = tempdir().expect("tempdir");
+        let target = temp.path().join("node-no-ai");
+        let mut config = test_config(target.clone(), TemplateKind::NodeWeb, false);
+        config.ai_tools.enabled = false;
+        scaffold(&config).expect("scaffold");
+        assert!(!target.join("AGENTS.md").exists());
+        assert!(!target.join("CLAUDE.md").exists());
+        assert!(!target.join("GEMINI.md").exists());
+        assert!(!target.join("docs/AI_TOOLS.md").exists());
+    }
+
+    #[test]
+    fn omits_single_tool_file_when_tool_disabled() {
+        let temp = tempdir().expect("tempdir");
+        let target = temp.path().join("python-no-gemini");
+        let mut config = test_config(target.clone(), TemplateKind::PythonService, false);
+        config.ai_tools.gemini_cli = false;
+        scaffold(&config).expect("scaffold");
+        assert!(target.join("AGENTS.md").exists());
+        assert!(target.join("CLAUDE.md").exists());
+        assert!(!target.join("GEMINI.md").exists());
     }
 }

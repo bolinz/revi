@@ -33,6 +33,8 @@ Each generated project includes:
 - `.gitignore`
 - `CHANGELOG.md`
 - `revi.toml`
+- `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` for AI coding CLI compatibility
+- `docs/AI_TOOLS.md` plus shared project context files when enabled
 - optional `.github` workflows and issue/PR templates
 
 ## Git Flow
@@ -73,6 +75,13 @@ Detailed contributor and release rules live in [CONTRIBUTING.md](./CONTRIBUTING.
 - Project brief: [docs/PROJECT_BRIEF.md](./docs/PROJECT_BRIEF.md)
 - Architecture notes: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - Decision log: [docs/DECISIONS.md](./docs/DECISIONS.md)
+
+## AI CLI Compatibility
+
+- Revi generates `AGENTS.md` for Codex, `CLAUDE.md` for Claude Code, and `GEMINI.md` for Gemini CLI
+- Generated repositories can also include `docs/AI_TOOLS.md` as the shared compatibility and command guide
+- `revi.toml` supports an `[ai_tools]` block to disable the full layer or individual tool files
+- `revi doctor` reports whether `codex`, `claude`, and `gemini` are available locally without making them hard requirements
 
 ## Notes
 

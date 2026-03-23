@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - TBD
+
+- Added AI coding CLI compatibility output for Codex, Claude Code, and Gemini CLI
+- Added shared AI tool guidance and command helpers across all generated templates
+- Added optional AI CLI checks to `revi doctor`
+
 ## 0.1.2 - TBD
 
 - Enhanced `generic-project` for AI-agent-friendly project handoff
