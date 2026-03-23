@@ -7,8 +7,8 @@ use crate::{
     catalog::load_templates,
     cli::{InitArgs, TemplateChoice},
     config::{
-        BootstrapConfig, BranchStrategy, GithubConfig, ProjectConfig, ReleaseChannel,
-        ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
+        BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig, ProjectConfig,
+        ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
     },
 };
 
@@ -111,6 +111,28 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
     } else {
         None
     };
+    let generic = if template == TemplateKind::GenericProject {
+        GenericTemplateConfig {
+            agent_context_files: Confirm::with_theme(&theme)
+                .with_prompt("Generate AI agent context files in docs/?")
+                .default(true)
+                .interact()?,
+            scripts_dir: Confirm::with_theme(&theme)
+                .with_prompt("Create scripts/ placeholder directory?")
+                .default(true)
+                .interact()?,
+            placeholder_workflows: Confirm::with_theme(&theme)
+                .with_prompt("Generate placeholder CI and release workflows?")
+                .default(true)
+                .interact()?,
+            docs_expanded: Confirm::with_theme(&theme)
+                .with_prompt("Create expanded docs placeholders?")
+                .default(true)
+                .interact()?,
+        }
+    } else {
+        GenericTemplateConfig::default()
+    };
 
     Ok(StarterConfig {
         schema_version: 1,
@@ -142,6 +164,7 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
             push_after_create: create_repo,
             codeowners,
         },
+        generic,
     })
 }
 
@@ -188,6 +211,7 @@ fn build_non_interactive(args: &InitArgs) -> Result<StarterConfig> {
             push_after_create: false,
             codeowners: false,
         },
+        generic: GenericTemplateConfig::default(),
     })
 }
 
@@ -209,6 +233,7 @@ pub fn slugify(input: &str) -> String {
 
 fn template_choice_to_kind(choice: &TemplateChoice) -> TemplateKind {
     match choice {
+        TemplateChoice::GenericProject => TemplateKind::GenericProject,
         TemplateChoice::PythonService => TemplateKind::PythonService,
         TemplateChoice::NodeWeb => TemplateKind::NodeWeb,
         TemplateChoice::DesktopTauri => TemplateKind::DesktopTauri,

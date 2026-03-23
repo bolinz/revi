@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - TBD
+
+- Enhanced `generic-project` for AI-agent-friendly project handoff
+- Added configurable generic template options for agent context files, scripts, placeholder workflows, and expanded docs
+- Added stack-agnostic next-step guidance and repository context files for generic projects
+
 ## 0.1.1 - 2026-03-23
 
 - Added repository governance files for license, changelog, contributing, and security guidance

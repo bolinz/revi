@@ -23,6 +23,10 @@ pub fn load_templates() -> Result<Vec<TemplateSpec>> {
     let mut templates = Vec::new();
     for (id, raw) in [
         (
+            "generic-project",
+            include_str!("../templates/generic-project/manifest.toml"),
+        ),
+        (
             "python-service",
             include_str!("../templates/python-service/manifest.toml"),
         ),
