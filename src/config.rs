@@ -10,6 +10,8 @@ pub struct StarterConfig {
     pub workflow: WorkflowConfig,
     pub bootstrap: BootstrapConfig,
     pub github: GithubConfig,
+    #[serde(default)]
+    pub ai_tools: AiToolsConfig,
     #[serde(default, skip_serializing_if = "GenericTemplateConfig::is_default")]
     pub generic: GenericTemplateConfig,
 }
@@ -51,6 +53,16 @@ pub struct GithubConfig {
     pub repo: Option<String>,
     pub push_after_create: bool,
     pub codeowners: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiToolsConfig {
+    pub enabled: bool,
+    pub codex: bool,
+    pub claude_code: bool,
+    pub gemini_cli: bool,
+    pub tool_docs: bool,
+    pub command_helpers: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -105,6 +117,25 @@ impl Default for GenericTemplateConfig {
             placeholder_workflows: true,
             docs_expanded: true,
         }
+    }
+}
+
+impl Default for AiToolsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            codex: true,
+            claude_code: true,
+            gemini_cli: true,
+            tool_docs: true,
+            command_helpers: true,
+        }
+    }
+}
+
+impl AiToolsConfig {
+    pub fn is_default(config: &Self) -> bool {
+        config == &Self::default()
     }
 }
 

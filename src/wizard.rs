@@ -7,8 +7,9 @@ use crate::{
     catalog::load_templates,
     cli::{InitArgs, TemplateChoice},
     config::{
-        BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig, ProjectConfig,
-        ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
+        AiToolsConfig, BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig,
+        ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind,
+        WorkflowConfig,
     },
 };
 
@@ -111,6 +112,40 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
     } else {
         None
     };
+    let ai_tools_enabled = Confirm::with_theme(&theme)
+        .with_prompt("Generate AI coding CLI compatibility files?")
+        .default(true)
+        .interact()?;
+    let ai_tools = if ai_tools_enabled {
+        AiToolsConfig {
+            enabled: true,
+            codex: Confirm::with_theme(&theme)
+                .with_prompt("Generate AGENTS.md for Codex?")
+                .default(true)
+                .interact()?,
+            claude_code: Confirm::with_theme(&theme)
+                .with_prompt("Generate CLAUDE.md for Claude Code?")
+                .default(true)
+                .interact()?,
+            gemini_cli: Confirm::with_theme(&theme)
+                .with_prompt("Generate GEMINI.md for Gemini CLI?")
+                .default(true)
+                .interact()?,
+            tool_docs: Confirm::with_theme(&theme)
+                .with_prompt("Generate docs/AI_TOOLS.md and shared AI tool guidance?")
+                .default(true)
+                .interact()?,
+            command_helpers: Confirm::with_theme(&theme)
+                .with_prompt("Include command helper sections in AI tool files?")
+                .default(true)
+                .interact()?,
+        }
+    } else {
+        AiToolsConfig {
+            enabled: false,
+            ..AiToolsConfig::default()
+        }
+    };
     let generic = if template == TemplateKind::GenericProject {
         GenericTemplateConfig {
             agent_context_files: Confirm::with_theme(&theme)
@@ -156,6 +191,7 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
             init_git: true,
             initial_commit: true,
         },
+        ai_tools,
         github: GithubConfig {
             enabled: github_enabled,
             create_repo,
@@ -203,6 +239,7 @@ fn build_non_interactive(args: &InitArgs) -> Result<StarterConfig> {
             init_git: true,
             initial_commit: true,
         },
+        ai_tools: AiToolsConfig::default(),
         github: GithubConfig {
             enabled: true,
             create_repo: false,
