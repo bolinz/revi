@@ -47,6 +47,7 @@ pub enum TemplateCommands {
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum TemplateChoice {
+    GenericProject,
     PythonService,
     NodeWeb,
     DesktopTauri,

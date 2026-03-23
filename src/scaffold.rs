@@ -56,14 +56,15 @@ fn build_files(
     release_notes: &[String],
 ) -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
+    let readme_content = match config.project.template {
+        TemplateKind::GenericProject => generic_readme(config, checks),
+        _ => readme(config, checks),
+    };
     files.insert(
         ".gitignore".to_string(),
         render(&gitignore(config.project.template), ctx),
     );
-    files.insert(
-        "README.md".to_string(),
-        render(&readme(config, checks), ctx),
-    );
+    files.insert("README.md".to_string(), render(&readme_content, ctx));
     files.insert(
         "CONTRIBUTING.md".to_string(),
         render(&contributing(config, checks), ctx),
@@ -71,6 +72,22 @@ fn build_files(
     files.insert("CHANGELOG.md".to_string(), render(changelog(), ctx));
 
     match config.project.template {
+        TemplateKind::GenericProject => {
+            files.insert("src/.gitkeep".to_string(), String::new());
+            files.insert("docs/.gitkeep".to_string(), String::new());
+            if config.generic.scripts_dir {
+                files.insert("scripts/.gitkeep".to_string(), String::new());
+            }
+            if config.generic.docs_expanded {
+                files.insert("docs/notes/.gitkeep".to_string(), String::new());
+                files.insert("docs/runbooks/.gitkeep".to_string(), String::new());
+            }
+            if config.generic.agent_context_files {
+                files.insert("docs/PROJECT_BRIEF.md".to_string(), generic_project_brief());
+                files.insert("docs/ARCHITECTURE.md".to_string(), generic_architecture());
+                files.insert("docs/DECISIONS.md".to_string(), generic_decisions());
+            }
+        }
         TemplateKind::PythonService => {
             files.insert(
                 "pyproject.toml".to_string(),
@@ -127,14 +144,18 @@ fn build_files(
             ".github/ISSUE_TEMPLATE/feature_request.md".to_string(),
             issue_feature_template(),
         );
-        files.insert(
-            ".github/workflows/ci.yml".to_string(),
-            render(&ci_workflow(config), ctx),
-        );
-        files.insert(
-            ".github/workflows/release.yml".to_string(),
-            render(&release_workflow(config, release_notes), ctx),
-        );
+        let include_workflows = config.project.template != TemplateKind::GenericProject
+            || config.generic.placeholder_workflows;
+        if include_workflows {
+            files.insert(
+                ".github/workflows/ci.yml".to_string(),
+                render(&ci_workflow(config), ctx),
+            );
+            files.insert(
+                ".github/workflows/release.yml".to_string(),
+                render(&release_workflow(config, release_notes), ctx),
+            );
+        }
         if config.github.codeowners {
             files.insert(
                 "CODEOWNERS".to_string(),
@@ -156,6 +177,9 @@ fn render(template: &str, ctx: &BTreeMap<&'static str, String>) -> String {
 
 fn gitignore(kind: TemplateKind) -> &'static str {
     match kind {
+        TemplateKind::GenericProject => {
+            ".DS_Store\n.idea/\n.vscode/\ndist/\nbuild/\ncoverage/\n.tmp/\n"
+        }
         TemplateKind::PythonService => "__pycache__/\n.pytest_cache/\n.venv/\ndist/\nbuild/\n",
         TemplateKind::NodeWeb => "node_modules/\ndist/\ncoverage/\n",
         TemplateKind::DesktopTauri => "node_modules/\ndist/\nsrc-tauri/target/\n",
@@ -173,6 +197,9 @@ fn readme(config: &StarterConfig, checks: &[String]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     let release_targets = match config.project.template {
+        TemplateKind::GenericProject => {
+            "- Source-first GitHub Release by default\n- Add stack-specific build or publish steps after choosing a language or framework".to_string()
+        }
         TemplateKind::PythonService => {
             "- Container image publication via GHCR-compatible registry\n- GitHub Release notes for deployment guidance".to_string()
         }
@@ -188,6 +215,45 @@ fn readme(config: &StarterConfig, checks: &[String]) -> String {
     )
 }
 
+fn generic_readme(config: &StarterConfig, checks: &[String]) -> String {
+    let checks = checks
+        .iter()
+        .map(|item| format!("- `{item}`"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut next_steps = vec![
+        "Choose the primary language or framework for this repository.".to_string(),
+        "Replace the placeholder CI and release commands with stack-specific validation and packaging.".to_string(),
+        "Update `README.md` and `CONTRIBUTING.md` once the stack is decided.".to_string(),
+    ];
+    if config.generic.agent_context_files {
+        next_steps.insert(
+            0,
+            "Read `docs/PROJECT_BRIEF.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` before implementing the stack.".to_string(),
+        );
+    }
+    let next_steps = next_steps
+        .iter()
+        .enumerate()
+        .map(|(idx, item)| format!("{}. {}", idx + 1, item))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let docs_section = if config.generic.agent_context_files {
+        "- `docs/PROJECT_BRIEF.md`: product goals, users, and scope\n- `docs/ARCHITECTURE.md`: current structure and planned module boundaries\n- `docs/DECISIONS.md`: confirmed and pending technical decisions".to_string()
+    } else {
+        "- Add stack and product context files in `docs/` before handing the repo to an AI agent."
+            .to_string()
+    };
+    let scripts_section = if config.generic.scripts_dir {
+        "- `scripts/`: add repeatable automation entry points here once your toolchain is chosen"
+    } else {
+        "- Add a `scripts/` directory later if the project needs repeatable local automation"
+    };
+    format!(
+        "# {{{{project_name}}}}\n\n{{{{project_description}}}}\n\n## Template\n\n- Kind: `{{{{template_kind}}}}`\n- Runtime: `{{{{default_runtime}}}}`\n- Version: `{{{{project_version}}}}`\n\n## Git Workflow\n\n- Stable branch: `main`\n- Feature branches: `feat/<name>`\n- Bugfix branches: `fix/<name>`\n- Release blockers: `hotfix/<name>`\n- Release tags: `vX.Y.Z`\n\n## Agent Context\n\n{docs_section}\n{scripts_section}\n\n## Local Checks\n\n{checks}\n\n## Next Steps\n\n{next_steps}\n\n## Release\n\n- Source-first GitHub Release by default\n- Add stack-specific build or publish steps after choosing a language or framework\n"
+    )
+}
+
 fn contributing(config: &StarterConfig, checks: &[String]) -> String {
     let checks = checks
         .iter()
@@ -195,6 +261,9 @@ fn contributing(config: &StarterConfig, checks: &[String]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     let extra_care = match config.project.template {
+        TemplateKind::GenericProject => {
+            "- adding your first runtime or build toolchain\n- defining stack-specific CI or release behavior\n- changing generated repository conventions"
+        }
         TemplateKind::PythonService => {
             "- image/tagging changes\n- deployment manifest edits\n- model or toolchain behavior updates"
         }
@@ -249,6 +318,21 @@ fn python_test() -> String {
     "def test_smoke() -> None:\n    assert True\n".to_string()
 }
 
+fn generic_project_brief() -> String {
+    "# Project Brief\n\n## Goal\n\nDescribe what this repository should become.\n\n## Users\n\nList the primary users or operators.\n\n## In Scope\n\n- \n\n## Out Of Scope\n\n- \n\n## Current State\n\nThis repository was generated from Revi's `generic-project` template and does not assume any language, framework, or deployment platform yet.\n"
+        .to_string()
+}
+
+fn generic_architecture() -> String {
+    "# Architecture\n\n## Current Structure\n\n- `src/`: implementation entry point once the stack is chosen\n- `docs/`: product, architecture, and decision context\n- `scripts/`: optional automation hooks if enabled\n\n## Planned Modules\n\nDescribe the major modules after the stack is selected.\n\n## Open Questions\n\n- \n"
+        .to_string()
+}
+
+fn generic_decisions() -> String {
+    "# Decisions\n\n## Confirmed\n\n- Lightweight release flow on `main`\n- Tag-based releases using `vX.Y.Z`\n\n## Pending\n\n- Primary language or framework\n- Test command and CI stack\n- Build and release packaging strategy\n"
+        .to_string()
+}
+
 fn node_index() -> String {
     "console.log('hello from revi node-web template');\n".to_string()
 }
@@ -288,6 +372,7 @@ fn issue_feature_template() -> String {
 
 fn ci_workflow(config: &StarterConfig) -> String {
     match config.project.template {
+        TemplateKind::GenericProject => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - run: echo \"Add stack-specific validation commands to this workflow.\"\n".to_string(),
         TemplateKind::PythonService => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-python@v6\n        with:\n          python-version: '3.11'\n      - run: python -m pip install -e \".[dev]\"\n      - run: pytest -q\n".to_string(),
         TemplateKind::NodeWeb => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm install\n      - run: npm run ci\n".to_string(),
         TemplateKind::DesktopTauri => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: macos-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - uses: dtolnay/rust-toolchain@stable\n      - run: npm install\n      - run: npm run ci\n".to_string(),
@@ -301,6 +386,9 @@ fn release_workflow(config: &StarterConfig, release_notes: &[String]) -> String 
         .collect::<Vec<_>>()
         .join("\n");
     match config.project.template {
+        TemplateKind::GenericProject => format!(
+            "name: Release\n\non:\n  push:\n    tags: ['v*']\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - env:\n          GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n        run: |\n          cat > /tmp/release-notes.txt <<'EOF'\n          Release for ${{{{ github.ref_name }}}}\n\n{notes}\n\n          This generic template does not assume any language or framework.\n          Add stack-specific build artifacts after selecting your toolchain.\n          EOF\n          gh release create \"${{{{ github.ref_name }}}}\" --notes-file /tmp/release-notes.txt || gh release edit \"${{{{ github.ref_name }}}}\" --notes-file /tmp/release-notes.txt\n"
+        ),
         TemplateKind::PythonService => format!(
             "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\nenv:\n  IMAGE_NAME: ghcr.io/${{{{ github.repository_owner }}}}/{{{{project_slug}}}}\n\njobs:\n  container:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v5\n      - run: echo \"${{{{ secrets.GITHUB_TOKEN }}}}\" | docker login ghcr.io -u \"${{{{ github.actor }}}}\" --password-stdin\n      - run: |\n          docker build -t \"${{{{ env.IMAGE_NAME }}}}:latest\" -t \"${{{{ env.IMAGE_NAME }}}}:sha-${{{{ github.sha }}}}\" .\n      - run: |\n          docker push \"${{{{ env.IMAGE_NAME }}}}:latest\"\n          docker push \"${{{{ env.IMAGE_NAME }}}}:sha-${{{{ github.sha }}}}\"\n\n  release-notes:\n    if: startsWith(github.ref, 'refs/tags/v')\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - env:\n          GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n        run: |\n          cat > /tmp/release-notes.txt <<'EOF'\n          Release for ${{{{ github.ref_name }}}}\n\n{notes}\n          EOF\n          gh release create \"${{{{ github.ref_name }}}}\" --notes-file /tmp/release-notes.txt || gh release edit \"${{{{ github.ref_name }}}}\" --notes-file /tmp/release-notes.txt\n"
         ),
@@ -318,8 +406,8 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::config::{
-        BootstrapConfig, BranchStrategy, GithubConfig, ProjectConfig, ReleaseChannel,
-        ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
+        BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig, ProjectConfig,
+        ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind, WorkflowConfig,
     };
 
     use super::scaffold;
@@ -359,6 +447,7 @@ mod tests {
                 push_after_create: false,
                 codeowners: github,
             },
+            generic: GenericTemplateConfig::default(),
         }
     }
 
@@ -391,5 +480,38 @@ mod tests {
         scaffold(&config).expect("scaffold");
         assert!(target.join("src-tauri/Cargo.toml").exists());
         assert!(target.join(".github/workflows/release.yml").exists());
+    }
+
+    #[test]
+    fn scaffolds_generic_template() {
+        let temp = tempdir().expect("tempdir");
+        let target = temp.path().join("generic-demo");
+        let config = test_config(target.clone(), TemplateKind::GenericProject, true);
+        scaffold(&config).expect("scaffold");
+        assert!(target.join("src/.gitkeep").exists());
+        assert!(target.join("docs/.gitkeep").exists());
+        assert!(target.join("docs/PROJECT_BRIEF.md").exists());
+        assert!(target.join("scripts/.gitkeep").exists());
+        assert!(target.join(".github/workflows/ci.yml").exists());
+        assert!(!target.join("package.json").exists());
+        assert!(!target.join("pyproject.toml").exists());
+    }
+
+    #[test]
+    fn scaffolds_generic_template_with_disabled_optional_files() {
+        let temp = tempdir().expect("tempdir");
+        let target = temp.path().join("generic-minimal");
+        let mut config = test_config(target.clone(), TemplateKind::GenericProject, true);
+        config.generic = GenericTemplateConfig {
+            agent_context_files: false,
+            scripts_dir: false,
+            placeholder_workflows: false,
+            docs_expanded: false,
+        };
+        scaffold(&config).expect("scaffold");
+        assert!(!target.join("docs/PROJECT_BRIEF.md").exists());
+        assert!(!target.join("scripts").exists());
+        assert!(!target.join(".github/workflows/ci.yml").exists());
+        assert!(target.join(".github/pull_request_template.md").exists());
     }
 }

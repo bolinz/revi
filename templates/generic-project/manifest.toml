@@ -1,0 +1,7 @@
+id = "generic-project"
+kind = "generic-project"
+display_name = "Generic / Bring Your Own Stack"
+description = "Language-agnostic project scaffold with repo conventions, docs, and placeholder CI and release hooks."
+default_runtime = "custom"
+checks = ["Define your stack-specific checks in README and CI"]
+release_notes = ["GitHub Release is created from v* tags.", "Add stack-specific build and packaging steps after choosing your language or framework."]

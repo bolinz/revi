@@ -24,6 +24,7 @@ cargo run -- init --config /path/to/revi.toml
 - `python-service`
 - `node-web`
 - `desktop-tauri`
+- `generic-project`
 
 Each generated project includes:
 
@@ -66,6 +67,12 @@ Detailed contributor and release rules live in [CONTRIBUTING.md](./CONTRIBUTING.
 - Changelog: [CHANGELOG.md](./CHANGELOG.md)
 - Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Security policy: [SECURITY.md](./SECURITY.md)
+
+## Agent Context
+
+- Project brief: [docs/PROJECT_BRIEF.md](./docs/PROJECT_BRIEF.md)
+- Architecture notes: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- Decision log: [docs/DECISIONS.md](./docs/DECISIONS.md)
 
 ## Notes
 

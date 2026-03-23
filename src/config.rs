@@ -10,6 +10,8 @@ pub struct StarterConfig {
     pub workflow: WorkflowConfig,
     pub bootstrap: BootstrapConfig,
     pub github: GithubConfig,
+    #[serde(default, skip_serializing_if = "GenericTemplateConfig::is_default")]
+    pub generic: GenericTemplateConfig,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -51,9 +53,18 @@ pub struct GithubConfig {
     pub codeowners: bool,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GenericTemplateConfig {
+    pub agent_context_files: bool,
+    pub scripts_dir: bool,
+    pub placeholder_workflows: bool,
+    pub docs_expanded: bool,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum TemplateKind {
+    GenericProject,
     PythonService,
     NodeWeb,
     DesktopTauri,
@@ -86,6 +97,23 @@ impl StarterConfig {
     }
 }
 
+impl Default for GenericTemplateConfig {
+    fn default() -> Self {
+        Self {
+            agent_context_files: true,
+            scripts_dir: true,
+            placeholder_workflows: true,
+            docs_expanded: true,
+        }
+    }
+}
+
+impl GenericTemplateConfig {
+    pub fn is_default(config: &Self) -> bool {
+        config == &Self::default()
+    }
+}
+
 pub fn write_if_changed(path: &Path, content: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -101,6 +129,7 @@ pub fn write_if_changed(path: &Path, content: &str) -> Result<()> {
 impl TemplateKind {
     pub fn template_id(self) -> &'static str {
         match self {
+            Self::GenericProject => "generic-project",
             Self::PythonService => "python-service",
             Self::NodeWeb => "node-web",
             Self::DesktopTauri => "desktop-tauri",
