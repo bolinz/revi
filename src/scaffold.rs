@@ -156,6 +156,53 @@ fn build_files(
         if config.ai_tools.gemini_cli {
             files.insert("GEMINI.md".to_string(), gemini_md(config, &commands));
         }
+        if config.ai_tools.skills {
+            files.insert(".claude/settings.json".to_string(), claude_settings_json());
+            files.insert(
+                ".claude/skills/project-dev/SKILL.md".to_string(),
+                skill_md(
+                    "project-dev",
+                    "General project development tasks",
+                    &[
+                        (&commands.install, "Install"),
+                        (&commands.start, "Start"),
+                        (&commands.validate, "Validate"),
+                        ("cargo build", "Build"),
+                        ("cargo test", "Test"),
+                    ],
+                ),
+            );
+            files.insert(
+                ".claude/skills/release-workflow/SKILL.md".to_string(),
+                skill_md(
+                    "release-workflow",
+                    "Release workflow - versioning, tagging, GitHub Actions",
+                    &[
+                        ("git tag v0.1.0", "Create version tag"),
+                        ("git push origin v0.1.0", "Push tag to trigger release"),
+                        ("gh release create v0.1.0", "Create GitHub release"),
+                    ],
+                ),
+            );
+        }
+        if config.ai_tools.agents {
+            files.insert(
+                ".claude/agents/explore/SKILL.md".to_string(),
+                agent_config_md(
+                    "explore",
+                    "Explore codebase structure and find files",
+                    "Use Glob and Grep to find relevant files. Read file contents to understand structure.",
+                ),
+            );
+            files.insert(
+                ".claude/agents/implement/SKILL.md".to_string(),
+                agent_config_md(
+                    "implement",
+                    "Implement new features following project conventions",
+                    "Follow existing code patterns. Update tests. Run validation before completing.",
+                ),
+            );
+        }
     }
 
     if config.github.enabled {
@@ -531,6 +578,75 @@ fn tool_file(
             TemplateKind::NodeWeb => "node22",
             TemplateKind::DesktopTauri => "node22 + rust",
         }
+    )
+}
+
+fn claude_settings_json() -> String {
+    r#"{
+  "permissions": {
+    "allow": [
+      "Bash(cargo *)",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Read(./**)",
+      "Edit(./**)",
+      "Write(./**)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git force-push *)",
+      "Bash(gh *)"
+    ],
+    "deny": [
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Read(./.env)",
+      "Read(./secrets/**)"
+    ]
+  }
+}
+"#.to_string()
+}
+
+fn skill_md(skill_name: &str, description: &str, commands: &[(&str, &str)]) -> String {
+    let commands_section = commands
+        .iter()
+        .map(|(cmd, desc)| format!("### {}\n```bash\n{}\n```\n", desc, cmd))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!(
+        r#"---
+name: {skill_name}
+description: {description}
+allowed-tools: Bash,Read,Edit,Write,Glob,Grep
+---
+
+# {skill_name}
+
+{commands_section}
+"#,
+        skill_name = skill_name,
+        description = description,
+        commands_section = commands_section
+    )
+}
+
+fn agent_config_md(agent_name: &str, description: &str, instructions: &str) -> String {
+    format!(
+        r#"---
+name: {agent_name}
+description: {description}
+type: agent
+---
+
+# Agent: {agent_name}
+
+{instructions}
+"#,
+        agent_name = agent_name,
+        description = description,
+        instructions = instructions
     )
 }
 

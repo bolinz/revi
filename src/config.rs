@@ -63,6 +63,15 @@ pub struct AiToolsConfig {
     pub gemini_cli: bool,
     pub tool_docs: bool,
     pub command_helpers: bool,
+    pub skills: bool,
+    pub agents: bool,
+    pub use_ai_api: bool,
+    #[serde(default = "default_provider")]
+    pub ai_provider: String,
+}
+
+fn default_provider() -> String {
+    "minimax".to_string()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -129,6 +138,10 @@ impl Default for AiToolsConfig {
             gemini_cli: true,
             tool_docs: true,
             command_helpers: true,
+            skills: true,
+            agents: false,
+            use_ai_api: false,
+            ai_provider: "minimax".to_string(),
         }
     }
 }

@@ -116,6 +116,25 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
         .with_prompt("Generate AI coding CLI compatibility files?")
         .default(true)
         .interact()?;
+    let use_ai_api = if ai_tools_enabled {
+        Confirm::with_theme(&theme)
+            .with_prompt("Use AI API to generate skill/agent content?")
+            .default(false)
+            .interact()?
+    } else {
+        false
+    };
+    let ai_provider = if use_ai_api {
+        let choices = vec!["MiniMax", "OpenAI (future)", "Claude (future)"];
+        let selected = Select::with_theme(&theme)
+            .with_prompt("Select AI provider")
+            .default(0)
+            .items(&choices)
+            .interact()?;
+        choices[selected].to_lowercase().split_whitespace().next().unwrap_or("minimax").to_string()
+    } else {
+        "minimax".to_string()
+    };
     let ai_tools = if ai_tools_enabled {
         AiToolsConfig {
             enabled: true,
@@ -139,6 +158,16 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
                 .with_prompt("Include command helper sections in AI tool files?")
                 .default(true)
                 .interact()?,
+            skills: Confirm::with_theme(&theme)
+                .with_prompt("Generate Claude Code skill files (.claude/skills/)?")
+                .default(true)
+                .interact()?,
+            agents: Confirm::with_theme(&theme)
+                .with_prompt("Generate agent configuration files?")
+                .default(false)
+                .interact()?,
+            use_ai_api,
+            ai_provider,
         }
     } else {
         AiToolsConfig {
