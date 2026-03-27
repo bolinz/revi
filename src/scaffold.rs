@@ -5,6 +5,7 @@ use anyhow::{Context, Result, bail};
 use crate::{
     catalog::get_template,
     config::{StarterConfig, TemplateKind, write_if_changed},
+    providers::{create_provider, AgentContext, SkillContext},
 };
 
 pub fn scaffold(config: &StarterConfig) -> Result<PathBuf> {
@@ -25,7 +26,7 @@ pub fn scaffold(config: &StarterConfig) -> Result<PathBuf> {
         &ctx,
         &template.manifest.checks,
         &template.manifest.release_notes,
-    );
+    )?;
     for (relative, content) in files {
         let path = project_dir.join(relative);
         write_if_changed(&path, &content)?;
@@ -63,7 +64,7 @@ fn build_files(
     ctx: &BTreeMap<&'static str, String>,
     checks: &[String],
     release_notes: &[String],
-) -> BTreeMap<String, String> {
+) -> Result<BTreeMap<String, String>> {
     let mut files = BTreeMap::new();
     let commands = local_commands(config);
     let readme_content = match config.project.template {
@@ -158,8 +159,44 @@ fn build_files(
         }
         if config.ai_tools.skills {
             files.insert(".claude/settings.json".to_string(), claude_settings_json());
-            files.insert(
-                ".claude/skills/project-dev/SKILL.md".to_string(),
+
+            let project_type = match config.project.template {
+                TemplateKind::GenericProject => "Generic",
+                TemplateKind::PythonService => "Python",
+                TemplateKind::NodeWeb => "Node.js",
+                TemplateKind::DesktopTauri => "Desktop (Tauri)",
+            };
+
+            let skill_content = if config.ai_tools.use_ai_api {
+                match generate_ai_skill_sync(
+                    &config.ai_tools.ai_provider,
+                    "project-dev",
+                    "General project development tasks",
+                    project_type,
+                    &[
+                        (&commands.install, "Install"),
+                        (&commands.start, "Start"),
+                        (&commands.validate, "Validate"),
+                        (&commands.release_prep, "Release prep"),
+                    ],
+                ) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("[warn] AI skill generation failed: {}, using template", e);
+                        skill_md(
+                            "project-dev",
+                            "General project development tasks",
+                            &[
+                                (&commands.install, "Install"),
+                                (&commands.start, "Start"),
+                                (&commands.validate, "Validate"),
+                                ("cargo build", "Build"),
+                                ("cargo test", "Test"),
+                            ],
+                        )
+                    }
+                }
+            } else {
                 skill_md(
                     "project-dev",
                     "General project development tasks",
@@ -170,10 +207,37 @@ fn build_files(
                         ("cargo build", "Build"),
                         ("cargo test", "Test"),
                     ],
-                ),
-            );
-            files.insert(
-                ".claude/skills/release-workflow/SKILL.md".to_string(),
+                )
+            };
+            files.insert(".claude/skills/project-dev/SKILL.md".to_string(), skill_content);
+
+            let release_skill_content = if config.ai_tools.use_ai_api {
+                match generate_ai_skill_sync(
+                    &config.ai_tools.ai_provider,
+                    "release-workflow",
+                    "Release workflow - versioning, tagging, GitHub Actions",
+                    project_type,
+                    &[
+                        ("git tag v0.1.0", "Create version tag"),
+                        ("git push origin v0.1.0", "Push tag to trigger release"),
+                        ("gh release create v0.1.0", "Create GitHub release"),
+                    ],
+                ) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("[warn] AI release skill generation failed: {}, using template", e);
+                        skill_md(
+                            "release-workflow",
+                            "Release workflow - versioning, tagging, GitHub Actions",
+                            &[
+                                ("git tag v0.1.0", "Create version tag"),
+                                ("git push origin v0.1.0", "Push tag to trigger release"),
+                                ("gh release create v0.1.0", "Create GitHub release"),
+                            ],
+                        )
+                    }
+                }
+            } else {
                 skill_md(
                     "release-workflow",
                     "Release workflow - versioning, tagging, GitHub Actions",
@@ -182,26 +246,62 @@ fn build_files(
                         ("git push origin v0.1.0", "Push tag to trigger release"),
                         ("gh release create v0.1.0", "Create GitHub release"),
                     ],
-                ),
-            );
+                )
+            };
+            files.insert(".claude/skills/release-workflow/SKILL.md".to_string(), release_skill_content);
         }
         if config.ai_tools.agents {
-            files.insert(
-                ".claude/agents/explore/SKILL.md".to_string(),
+            let agent_content = if config.ai_tools.use_ai_api {
+                match generate_ai_agent_sync(
+                    &config.ai_tools.ai_provider,
+                    "explore",
+                    "Explore codebase structure and find files",
+                    "Use Glob and Grep to find relevant files. Read file contents to understand structure.",
+                ) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("[warn] AI agent generation failed: {}, using template", e);
+                        agent_config_md(
+                            "explore",
+                            "Explore codebase structure and find files",
+                            "Use Glob and Grep to find relevant files. Read file contents to understand structure.",
+                        )
+                    }
+                }
+            } else {
                 agent_config_md(
                     "explore",
                     "Explore codebase structure and find files",
                     "Use Glob and Grep to find relevant files. Read file contents to understand structure.",
-                ),
-            );
-            files.insert(
-                ".claude/agents/implement/SKILL.md".to_string(),
+                )
+            };
+            files.insert(".claude/agents/explore/SKILL.md".to_string(), agent_content);
+
+            let implement_content = if config.ai_tools.use_ai_api {
+                match generate_ai_agent_sync(
+                    &config.ai_tools.ai_provider,
+                    "implement",
+                    "Implement new features following project conventions",
+                    "Follow existing code patterns. Update tests. Run validation before completing.",
+                ) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        eprintln!("[warn] AI implement agent generation failed: {}, using template", e);
+                        agent_config_md(
+                            "implement",
+                            "Implement new features following project conventions",
+                            "Follow existing code patterns. Update tests. Run validation before completing.",
+                        )
+                    }
+                }
+            } else {
                 agent_config_md(
                     "implement",
                     "Implement new features following project conventions",
                     "Follow existing code patterns. Update tests. Run validation before completing.",
-                ),
-            );
+                )
+            };
+            files.insert(".claude/agents/implement/SKILL.md".to_string(), implement_content);
         }
     }
 
@@ -238,7 +338,33 @@ fn build_files(
         }
     }
 
-    files
+    Ok(files)
+}
+
+async fn generate_ai_skill(provider_name: &str, skill_name: &str, description: &str, project_type: &str, commands: &[(&str, &str)]) -> Result<String> {
+    let provider = create_provider(provider_name)?;
+    let mut ctx = SkillContext::new(skill_name, description, project_type);
+    for (cmd, _) in commands {
+        ctx.add_command(cmd);
+    }
+    provider.generate_skill(&ctx).await
+}
+
+async fn generate_ai_agent(provider_name: &str, agent_name: &str, description: &str, instructions: &str) -> Result<String> {
+    let provider = create_provider(provider_name)?;
+    let mut ctx = AgentContext::new(agent_name, description);
+    ctx.add_task(instructions);
+    provider.generate_agent(&ctx).await
+}
+
+fn generate_ai_skill_sync(provider_name: &str, skill_name: &str, description: &str, project_type: &str, commands: &[(&str, &str)]) -> Result<String> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(generate_ai_skill(provider_name, skill_name, description, project_type, commands))
+}
+
+fn generate_ai_agent_sync(provider_name: &str, agent_name: &str, description: &str, instructions: &str) -> Result<String> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(generate_ai_agent(provider_name, agent_name, description, instructions))
 }
 
 fn should_emit_project_context(config: &StarterConfig) -> bool {
