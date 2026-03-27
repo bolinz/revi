@@ -1,12 +1,18 @@
 # Changelog
 
-## 0.1.3 - TBD
+## 0.1.3 - 2026-03-27
 
+- Added AI Provider plugin architecture with `AiProvider` trait
+- Implemented MiniMax provider for AI-generated content
+- Added Claude Code skill files generation (`.claude/skills/`)
+- Added agent configuration files generation
+- Added `.claude/settings.json` with permissions for cargo, git, npm, gh
+- Added pre-built skills: rust-dev, revi-dev, release-workflow
 - Added AI coding CLI compatibility output for Codex, Claude Code, and Gemini CLI
 - Added shared AI tool guidance and command helpers across all generated templates
 - Added optional AI CLI checks to `revi doctor`
 
-## 0.1.2 - TBD
+## 0.1.2 - 2026-03-23
 
 - Enhanced `generic-project` for AI-agent-friendly project handoff
 - Added configurable generic template options for agent context files, scripts, placeholder workflows, and expanded docs
