@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5 - TBD
+
+- Added Ollama provider for local LLM support
+- Added Claude provider for Anthropic API
+- Added AI generation integration in scaffold workflow
+- Added project_type-aware skill generation
+- Added fallback to static templates when AI unavailable
+
+## 0.1.4 - 2026-03-27
+
+- Added Ollama and Claude AI providers
+- Updated README.md with skills and provider documentation
+- Updated ARCHITECTURE.md with Provider architecture
+
 ## 0.1.3 - 2026-03-27
 
 - Added AI Provider plugin architecture with `AiProvider` trait
