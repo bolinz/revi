@@ -83,6 +83,29 @@ Detailed contributor and release rules live in [CONTRIBUTING.md](./CONTRIBUTING.
 - `revi.toml` supports an `[ai_tools]` block to disable the full layer or individual tool files
 - `revi doctor` reports whether `codex`, `claude`, and `gemini` are available locally without making them hard requirements
 
+## Claude Code Skills
+
+Revi can generate Claude Code skill files for AI-assisted development:
+
+- `.claude/settings.json` - permissions configuration
+- `.claude/skills/project-dev/SKILL.md` - project-specific commands
+- `.claude/skills/release-workflow/SKILL.md` - release workflow commands
+- `.claude/agents/*/SKILL.md` - agent configurations (optional)
+
+Enable via `revi init` wizard prompts or `revi.toml` `[ai_tools]` block.
+
+## AI Providers
+
+Revi supports AI Provider plugins for generating skill and agent content:
+
+| Provider | Environment | Description |
+|----------|-------------|-------------|
+| `ollama` | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Local LLM (default: localhost:11434, llama3) |
+| `minimax` | `MINIMAX_API_KEY` | MiniMax API |
+| `claude` | `ANTHROPIC_API_KEY` | Anthropic Claude API |
+
+Enable `use_ai_api` in `revi.toml` and set the appropriate environment variables.
+
 ## Notes
 
 - Local scaffold creation initializes Git and creates an initial commit by default.

@@ -10,6 +10,7 @@
 - `src/scaffold.rs`: file generation logic per template
 - `src/bootstrap.rs`: local git bootstrap and optional GitHub repo creation
 - `src/doctor.rs`: local environment checks
+- `src/providers/`: AI Provider plugins
 - `templates/`: embedded template manifests
 
 ## Runtime Flow
@@ -46,3 +47,32 @@ The current `generic-project` work is the first place where template-specific co
 - Avoid diverging between Revi's own repository workflow and the workflows it generates
 - Generic templates must remain stack-agnostic
 - Configuration expansion should stay minimal and avoid breaking existing templates
+
+## AI Provider Architecture
+
+Revi uses a plugin-based AI Provider system:
+
+```
+src/providers/
+├── mod.rs          # AiProvider trait and ProviderRegistry
+├── minimax.rs      # MiniMax API provider
+├── ollama.rs       # Local Ollama LLM provider
+└── claude.rs      # Anthropic Claude API provider
+```
+
+### AiProvider Trait
+
+```rust
+#[async_trait]
+pub trait AiProvider: Send + Sync {
+    fn name(&self) -> &str;
+    async fn generate_skill(&self, context: &SkillContext) -> Result<String>;
+    async fn generate_agent(&self, context: &AgentContext) -> Result<String>;
+}
+```
+
+### Adding a New Provider
+
+1. Create `src/providers/<name>.rs` implementing `AiProvider`
+2. Export in `src/providers/mod.rs`
+3. Add case to `create_provider()` function

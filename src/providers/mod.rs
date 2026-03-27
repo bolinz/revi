@@ -4,8 +4,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 pub mod minimax;
+pub mod ollama;
+pub mod claude;
 
 pub use minimax::MiniMaxProvider;
+pub use ollama::OllamaProvider;
+pub use claude::ClaudeProvider;
 
 #[async_trait]
 pub trait AiProvider: Send + Sync {
@@ -60,9 +64,31 @@ impl Default for ProviderRegistry {
     }
 }
 
-pub fn create_provider(name: &str, api_key: &str) -> Result<Box<dyn AiProvider>> {
+/// Create a provider by name.
+///
+/// For "minimax", MINIMAX_API_KEY env var is required.
+/// For "ollama", uses OLLAMA_BASE_URL and OLLAMA_MODEL env vars (defaults to localhost:11434 and llama3).
+/// For "claude", ANTHROPIC_API_KEY or CLAUDE_API_KEY env var is required.
+pub fn create_provider(name: &str) -> Result<Box<dyn AiProvider>> {
     match name {
-        "minimax" => Ok(Box::new(minimax::MiniMaxProvider::new(api_key.to_string()))),
-        _ => anyhow::bail!("Unknown provider: {}", name),
+        "minimax" => {
+            let api_key = std::env::var("MINIMAX_API_KEY")
+                .map_err(|_| anyhow::anyhow!("MINIMAX_API_KEY is required"))?;
+            Ok(Box::new(minimax::MiniMaxProvider::new(api_key)))
+        }
+        "ollama" => {
+            let base_url = std::env::var("OLLAMA_BASE_URL")
+                .unwrap_or_else(|_| "http://localhost:11434".to_string());
+            let model = std::env::var("OLLAMA_MODEL")
+                .unwrap_or_else(|_| "llama3".to_string());
+            Ok(Box::new(ollama::OllamaProvider::new(base_url, model)))
+        }
+        "claude" => {
+            let api_key = std::env::var("ANTHROPIC_API_KEY")
+                .or_else(|_| std::env::var("CLAUDE_API_KEY"))
+                .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY or CLAUDE_API_KEY is required"))?;
+            Ok(Box::new(claude::ClaudeProvider::new(api_key)))
+        }
+        _ => anyhow::bail!("Unknown provider: {}. Available: minimax, ollama, claude", name),
     }
 }
