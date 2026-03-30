@@ -20,6 +20,8 @@ pub struct TemplateManifest {
 pub struct TemplateSpec {
     pub manifest: TemplateManifest,
     pub is_v2: bool,
+    /// V2 manifest with file definitions (None for V1 templates)
+    pub v2_spec: Option<TemplateSpecV2>,
 }
 
 /// Load templates from V2 manifests on filesystem
@@ -40,6 +42,7 @@ pub fn load_templates() -> Result<Vec<TemplateSpec>> {
         templates.push(TemplateSpec {
             manifest,
             is_v2: true,
+            v2_spec: Some(spec),
         });
     }
 

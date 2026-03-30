@@ -5,6 +5,7 @@ use anyhow::{Context, Result, bail};
 use crate::{
     catalog::get_template,
     config::{StarterConfig, TemplateKind, write_if_changed},
+    manifest::TemplateSpec as TemplateSpecV2,
     providers::{create_provider, AgentContext, SkillContext},
 };
 
@@ -21,12 +22,26 @@ pub fn scaffold(config: &StarterConfig) -> Result<PathBuf> {
 
     let template = get_template(config.project.template)?;
     let ctx = render_context(config, &template.manifest.default_runtime);
-    let files = build_files(
+
+    // Build files using both old logic and manifest-driven generation
+    // Old logic handles GitHub workflows, AI files, etc.
+    // Manifest-driven handles template-specific files
+    let mut files = build_files(
         config,
         &ctx,
         &template.manifest.checks,
         &template.manifest.release_notes,
     )?;
+
+    // If V2 manifest is available, merge manifest-driven files
+    // (manifest takes precedence for files it defines)
+    if let Some(ref v2_spec) = template.v2_spec {
+        let manifest_files = build_files_from_v2_manifest(v2_spec, &ctx)?;
+        for (path, content) in manifest_files {
+            files.insert(path, content);
+        }
+    }
+
     for (relative, content) in files {
         let path = project_dir.join(relative);
         write_if_changed(&path, &content)?;
@@ -57,6 +72,51 @@ fn render_context(config: &StarterConfig, runtime: &str) -> BTreeMap<&'static st
     ctx.insert("default_runtime", runtime.to_string());
     ctx.insert("release_tag_example", "v0.1.0".to_string());
     ctx
+}
+
+/// Build files from V2 manifest
+fn build_files_from_v2_manifest(
+    v2_spec: &TemplateSpecV2,
+    ctx: &BTreeMap<&'static str, String>,
+) -> Result<BTreeMap<String, String>> {
+    let mut files = BTreeMap::new();
+
+    // Handle static files
+    for static_file in &v2_spec.manifest.files.static_files {
+        if let Some(path) = v2_spec.get_static_file(static_file) {
+            let content = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read static file {}", path.display()))?;
+            files.insert(static_file.clone(), content);
+        }
+    }
+
+    // Handle inline files
+    for inline_file in &v2_spec.manifest.files.inline {
+        let content = render_template(&inline_file.content, ctx);
+        files.insert(inline_file.path.clone(), content);
+    }
+
+    // Handle external template files
+    for external_file in &v2_spec.manifest.files.external {
+        if let Some(path) = v2_spec.get_template_file(&external_file.template) {
+            let template_content = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read template file {}", path.display()))?;
+            let rendered = render_template(&template_content, ctx);
+            files.insert(external_file.path.clone(), rendered);
+        }
+    }
+
+    Ok(files)
+}
+
+/// Simple template rendering (same as existing render function)
+fn render_template(template: &str, ctx: &BTreeMap<&str, String>) -> String {
+    let mut output = template.to_string();
+    for (key, value) in ctx {
+        let placeholder = format!("{{{{{key}}}}}");
+        output = output.replace(&placeholder, value);
+    }
+    output
 }
 
 fn build_files(

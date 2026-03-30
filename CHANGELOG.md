@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.5 - TBD
+## 0.1.6 - TBD
+
+- Added V2 manifest system with TOML-based declarative template definitions
+- Migrated all 7 templates to V2 manifest format
+- Added manifest-driven file generation combining old logic with template-specific files
+- V2 manifests support static, inline, and external file types
+- Added `from_template_id` method to TemplateKind for manifest lookup
+
+## 0.1.5 - 2026-03-30
 
 - Added Ollama provider for local LLM support
 - Added Claude provider for Anthropic API
