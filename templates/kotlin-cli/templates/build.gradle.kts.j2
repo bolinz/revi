@@ -1,0 +1,30 @@
+plugins {
+    kotlin("jvm") version "1.9.22"
+    application
+}
+
+group = "{{project_slug}}"
+version = "{{project_version}}"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib"))
+    implementation("com.github.ajalt.clikt:clikt:3.5.4")
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnit()
+}
+
+application {
+    mainClass.set("MainKt")
+}
+
+kotlin {
+    jvmToolchain(11)
+}

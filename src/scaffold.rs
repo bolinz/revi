@@ -136,6 +136,10 @@ fn build_files(
                 render(&tauri_conf(config), ctx),
             );
         }
+        TemplateKind::RustWeb | TemplateKind::GoApi | TemplateKind::KotlinCli => {
+            // Manifest-driven templates: files are generated from manifest definitions
+            // This is handled by manifest-based generation in a later refactor
+        }
     }
 
     if should_emit_project_context(config) {
@@ -165,6 +169,9 @@ fn build_files(
                 TemplateKind::PythonService => "Python",
                 TemplateKind::NodeWeb => "Node.js",
                 TemplateKind::DesktopTauri => "Desktop (Tauri)",
+                TemplateKind::RustWeb => "Rust",
+                TemplateKind::GoApi => "Go",
+                TemplateKind::KotlinCli => "Kotlin",
             };
 
             let skill_content = if config.ai_tools.use_ai_api {
@@ -423,6 +430,30 @@ fn local_commands(config: &StarterConfig) -> LocalCommands {
                 "Add signing, notarization, or updater setup before shipping production desktop builds."
                     .to_string(),
         },
+        TemplateKind::RustWeb => LocalCommands {
+            install: "cargo build".to_string(),
+            start: "cargo run".to_string(),
+            validate: "cargo test".to_string(),
+            release_prep: "cargo build --release".to_string(),
+            stack_specific:
+                "Add database drivers and deployment configuration after initial setup.".to_string(),
+        },
+        TemplateKind::GoApi => LocalCommands {
+            install: "go mod download".to_string(),
+            start: "go run cmd/server/main.go".to_string(),
+            validate: "go test ./...".to_string(),
+            release_prep: "go build -o server ./cmd/server".to_string(),
+            stack_specific:
+                "Add database driver and deployment configuration after initial setup.".to_string(),
+        },
+        TemplateKind::KotlinCli => LocalCommands {
+            install: "./gradlew build".to_string(),
+            start: "./gradlew run".to_string(),
+            validate: "./gradlew check".to_string(),
+            release_prep: "./gradlew build --release".to_string(),
+            stack_specific:
+                "Add CLI argument parsing and native image configuration after initial setup.".to_string(),
+        },
     }
 }
 
@@ -434,6 +465,9 @@ fn gitignore(kind: TemplateKind) -> &'static str {
         TemplateKind::PythonService => "__pycache__/\n.pytest_cache/\n.venv/\ndist/\nbuild/\n",
         TemplateKind::NodeWeb => "node_modules/\ndist/\ncoverage/\n",
         TemplateKind::DesktopTauri => "node_modules/\ndist/\nsrc-tauri/target/\n",
+        TemplateKind::RustWeb => "/target\n*.rs.bk\nCargo.lock\n",
+        TemplateKind::GoApi => "/server\n*.exe\n.DS_Store\n.env\n",
+        TemplateKind::KotlinCli => ".gradle\n/build\n/dist\n*.class\n*.jar\n",
     }
 }
 
@@ -460,6 +494,15 @@ fn readme(config: &StarterConfig, checks: &[String], commands: &LocalCommands) -
         }
         TemplateKind::DesktopTauri => {
             "- Multi-platform desktop bundle release via GitHub Releases\n- Tag-driven Tauri publish workflow".to_string()
+        }
+        TemplateKind::RustWeb => {
+            "- Container image publication via GHCR-compatible registry\n- GitHub Release notes for deployment guidance".to_string()
+        }
+        TemplateKind::GoApi => {
+            "- Container image publication via GHCR-compatible registry\n- GitHub Release notes for deployment guidance".to_string()
+        }
+        TemplateKind::KotlinCli => {
+            "- Binary artifact publication via GitHub Releases\n- Native image publication for multiple platforms".to_string()
         }
     };
     let ai_section = ai_entrypoint_section(config);
@@ -561,6 +604,15 @@ fn contributing(config: &StarterConfig, checks: &[String]) -> String {
         TemplateKind::DesktopTauri => {
             "- bundling/signing changes\n- updater/package channel changes\n- native capability or filesystem scope changes"
         }
+        TemplateKind::RustWeb => {
+            "- database driver changes\n- deployment configuration updates\n- API design changes"
+        }
+        TemplateKind::GoApi => {
+            "- database driver changes\n- deployment configuration updates\n- API design changes"
+        }
+        TemplateKind::KotlinCli => {
+            "- CLI argument parsing changes\n- native image compilation settings\n- distribution format changes"
+        }
     };
     format!(
         "# Contributing\n\n## Branching\n\n- `main` is always intended to stay releasable\n- use `feat/<topic>` for new work\n- use `fix/<topic>` for bug fixes\n- use `hotfix/<topic>` for release blockers\n\n## Pull Requests\n\n- keep changes scoped\n- update docs when behavior changes\n- include validation steps in the PR body\n\n## Validation\n\nRun before opening a PR:\n{checks}\n\n## Change Types Requiring Extra Care\n\n{extra_care}\n\n## Release Flow\n\n1. Land changes on `main`\n2. Update versioned files together\n3. Create a release commit if needed\n4. Tag `vX.Y.Z`\n5. Push `main` and the tag\n"
@@ -587,6 +639,12 @@ fn architecture_doc(config: &StarterConfig) -> String {
             .to_string(),
         TemplateKind::DesktopTauri => "# Architecture\n\n## Current Structure\n\n- `src/`: frontend placeholder code\n- `dist/`: generated frontend output placeholder\n- `src-tauri/`: Rust desktop shell and Tauri config\n- `docs/`: project, architecture, and decision context\n\n## Planned Modules\n\nDescribe frontend, native, and packaging boundaries here.\n\n## Open Questions\n\n- Which frontend stack should back the Tauri shell?\n- Which signing or update channel requirements apply before release?\n"
             .to_string(),
+        TemplateKind::RustWeb => "# Architecture\n\n## Current Structure\n\n- `src/`: Rust source code with handlers and models\n- `Cargo.toml`: Rust project configuration\n- `Dockerfile`: container build definition\n\n## Planned Modules\n\nDescribe API routes, services, and database adapters here.\n\n## Open Questions\n\n- Which database driver should be used?\n- Which deployment platform should the release workflow target?\n"
+            .to_string(),
+        TemplateKind::GoApi => "# Architecture\n\n## Current Structure\n\n- `cmd/server/`: main application entrypoint\n- `internal/handlers/`: HTTP request handlers\n- `internal/models/`: data models\n- `go.mod`: Go module configuration\n\n## Planned Modules\n\nDescribe API routes, services, and database adapters here.\n\n## Open Questions\n\n- Which database driver should be used?\n- Which deployment platform should the release workflow target?\n"
+            .to_string(),
+        TemplateKind::KotlinCli => "# Architecture\n\n## Current Structure\n\n- `src/main/kotlin/`: Kotlin source code\n- `build.gradle.kts`: Gradle build configuration\n\n## Planned Modules\n\nDescribe CLI commands and their implementations here.\n\n## Open Questions\n\n- What CLI arguments should be supported?\n- Should native image compilation be enabled?\n"
+            .to_string(),
     }
 }
 
@@ -603,6 +661,15 @@ fn decisions_doc(config: &StarterConfig) -> String {
         }
         TemplateKind::DesktopTauri => {
             "- Frontend framework selection\n- Signing and notarization requirements\n- Update distribution strategy"
+        }
+        TemplateKind::RustWeb => {
+            "- Database driver selection\n- Deployment target and environment configuration\n- API design and routing structure"
+        }
+        TemplateKind::GoApi => {
+            "- Database driver selection\n- Deployment target and environment configuration\n- API design and routing structure"
+        }
+        TemplateKind::KotlinCli => {
+            "- CLI argument parsing strategy\n- Native image compilation settings\n- Distribution format (JAR, native binary)"
         }
     };
     format!(
@@ -703,6 +770,9 @@ fn tool_file(
             TemplateKind::PythonService => "python3.11",
             TemplateKind::NodeWeb => "node22",
             TemplateKind::DesktopTauri => "node22 + rust",
+            TemplateKind::RustWeb => "rust",
+            TemplateKind::GoApi => "go1.21",
+            TemplateKind::KotlinCli => "kotlin 1.9",
         }
     )
 }
@@ -872,6 +942,9 @@ fn ci_workflow(config: &StarterConfig) -> String {
         TemplateKind::PythonService => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-python@v6\n        with:\n          python-version: '3.11'\n      - run: python -m pip install -e \".[dev]\"\n      - run: pytest -q\n".to_string(),
         TemplateKind::NodeWeb => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm install\n      - run: npm run ci\n".to_string(),
         TemplateKind::DesktopTauri => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: macos-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - uses: dtolnay/rust-toolchain@stable\n      - run: npm install\n      - run: npm run ci\n".to_string(),
+        TemplateKind::RustWeb => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: dtolnay/rust-toolchain@stable\n        with:\n          components: rustfmt, clippy\n      - uses: Swatinem/rust-cache@v2\n      - name: Check formatting\n        run: cargo fmt --check\n      - name: Run clippy\n        run: cargo clippy -- -D warnings\n      - name: Run tests\n        run: cargo test\n      - name: Build\n        run: cargo build\n".to_string(),
+        TemplateKind::GoApi => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - name: Set up Go\n        uses: actions/setup-go@v5\n        with:\n          go-version: '1.21'\n          cache: true\n      - name: Vet\n        run: go vet ./...\n      - name: Test\n        run: go test ./...\n      - name: Build\n        run: go build -o server ./cmd/server\n".to_string(),
+        TemplateKind::KotlinCli => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-java@v4\n        with:\n          distribution: temurin\n          java-version: 11\n          cache: gradle\n      - name: Check\n        run: ./gradlew check\n      - name: Build\n        run: ./gradlew build\n".to_string(),
     }
 }
 
@@ -893,6 +966,15 @@ fn release_workflow(config: &StarterConfig, release_notes: &[String]) -> String 
         ),
         TemplateKind::DesktopTauri => format!(
             "name: Release\n\non:\n  push:\n    tags: ['v*']\n\npermissions:\n  contents: write\n\njobs:\n  publish-tauri:\n    strategy:\n      fail-fast: false\n      matrix:\n        include:\n          - platform: macos-latest\n            args: --target aarch64-apple-darwin\n          - platform: macos-latest\n            args: --target x86_64-apple-darwin\n          - platform: ubuntu-22.04\n            args: ''\n          - platform: windows-latest\n            args: ''\n    runs-on: ${{{{ matrix.platform }}}}\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - uses: dtolnay/rust-toolchain@stable\n      - run: npm install\n      - uses: tauri-apps/tauri-action@v0\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n        with:\n          tagName: ${{{{ github.ref_name }}}}\n          releaseName: {{{{project_name}}}} ${{{{ github.ref_name }}}}\n          releaseBody: |\n            Release for ${{{{ github.ref_name }}}}\n{notes}\n          releaseDraft: false\n          prerelease: false\n          projectPath: .\n          args: ${{{{ matrix.args }}}}\n"
+        ),
+        TemplateKind::RustWeb => format!(
+            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\nenv:\n  IMAGE_NAME: ghcr.io/${{{{ github.repository_owner }}}}/{{{{project_slug}}}}\n\njobs:\n  container:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v5\n      - uses: dtolnay/rust-toolchain@stable\n      - name: Set up Docker Buildx\n        uses: docker/setup-buildx-action@v3\n      - name: Log in to GHCR\n        uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{{{ github.actor }}}}\n          password: ${{{{ secrets.GITHUB_TOKEN }}}}\n      - name: Build and push\n        uses: docker/build-push-action@v5\n        with:\n          context: .\n          push: true\n          tags: |\n            ${{{{ env.IMAGE_NAME }}}}:latest\n            ${{{{ env.IMAGE_NAME }}}}:sha-${{{{ github.sha }}}}\n\n  release-notes:\n    if: startsWith(github.ref, 'refs/tags/v')\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Generate release notes\n        run: |\n          cat > /tmp/release-notes.txt <<'EOF'\n          Release for ${{{{ github.ref_name }}}}\n\n{notes}\n          EOF\n      - name: Create GitHub release\n        uses: softprops/action-gh-release@v1\n        with:\n          body_path: /tmp/release-notes.txt\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
+        ),
+        TemplateKind::GoApi => format!(
+            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\nenv:\n  IMAGE_NAME: ghcr.io/${{{{ github.repository_owner }}}}/{{{{project_slug}}}}\n\njobs:\n  container:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Set up Go\n        uses: actions/setup-go@v5\n        with:\n          go-version: '1.21'\n          cache: true\n      - name: Set up Docker Buildx\n        uses: docker/setup-buildx-action@v3\n      - name: Log in to GHCR\n        uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{{{ github.actor }}}}\n          password: ${{{{ secrets.GITHUB_TOKEN }}}}\n      - name: Build and push\n        uses: docker/build-push-action@v5\n        with:\n          context: .\n          push: true\n          tags: |\n            ${{{{ env.IMAGE_NAME }}}}:latest\n            ${{{{ env.IMAGE_NAME }}}}:sha-${{{{ github.sha }}}}\n\n  release-notes:\n    if: startsWith(github.ref, 'refs/tags/v')\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Generate release notes\n        run: |\n          cat > /tmp/release-notes.txt <<'EOF'\n          Release for ${{{{ github.ref_name }}}}\n\n{notes}\n          EOF\n      - name: Create GitHub release\n        uses: softprops/action-gh-release@v1\n        with:\n          body_path: /tmp/release-notes.txt\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
+        ),
+        TemplateKind::KotlinCli => format!(
+            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-java@v4\n        with:\n          distribution: temurin\n          java-version: 11\n          cache: gradle\n      - name: Build\n        run: ./gradlew build --release\n      - name: Create GitHub Release\n        uses: softprops/action-gh-release@v1\n        with:\n          files: build/libs/*.jar\n          body: |\n            Release for ${{{{ github.ref_name }}}}\n\n{notes}\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
         ),
     }
 }

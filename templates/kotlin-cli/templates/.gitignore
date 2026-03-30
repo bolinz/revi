@@ -1,0 +1,7 @@
+.gradle
+/build
+/dist
+*.class
+*.jar
+*.log
+.DS_Store
