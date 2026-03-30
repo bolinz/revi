@@ -185,4 +185,18 @@ impl TemplateKind {
             Self::KotlinCli => "kotlin-cli",
         }
     }
+
+    /// Convert template ID string to TemplateKind
+    pub fn from_template_id(id: &str) -> TemplateKind {
+        match id {
+            "generic-project" => TemplateKind::GenericProject,
+            "python-service" => TemplateKind::PythonService,
+            "node-web" => TemplateKind::NodeWeb,
+            "desktop-tauri" => TemplateKind::DesktopTauri,
+            "rust-web" => TemplateKind::RustWeb,
+            "go-api" => TemplateKind::GoApi,
+            "kotlin-cli" => TemplateKind::KotlinCli,
+            _ => TemplateKind::GenericProject,
+        }
+    }
 }
