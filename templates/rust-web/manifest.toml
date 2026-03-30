@@ -1,0 +1,63 @@
+[template]
+id = "rust-web"
+kind = "rust-web"
+display_name = "Rust Web Service (Axum)"
+description = "Rust web service scaffold with Axum framework, async runtime, and optional container release workflow."
+version = "1.0.0"
+
+[runtime]
+default = "rust"
+
+[commands]
+install = "cargo build"
+start = "cargo run"
+validate = "cargo test"
+release_prep = "cargo build --release"
+stack_specific = "Add database drivers and deployment configuration after initial setup."
+
+checks = ["cargo check", "cargo test"]
+
+[files]
+static = [".gitignore"]
+
+[[files.external]]
+path = "README.md"
+template = "README.md.j2"
+
+[[files.external]]
+path = "Cargo.toml"
+template = "Cargo.toml.j2"
+
+[[files.external]]
+path = "src/main.rs"
+template = "src/main.rs.j2"
+
+[[files.external]]
+path = "src/lib.rs"
+template = "src/lib.rs.j2"
+
+[[files.external]]
+path = "src/error.rs"
+template = "src/error.rs.j2"
+
+[[files.external]]
+path = "src/handlers/mod.rs"
+template = "src/handlers/mod.rs.j2"
+
+[[files.external]]
+path = "src/models/mod.rs"
+template = "src/models/mod.rs.j2"
+
+[[files.external]]
+path = "Dockerfile"
+template = "Dockerfile.j2"
+
+[[files.external]]
+path = ".github/workflows/ci.yml"
+template = ".github/workflows/ci.yml.j2"
+
+[[files.external]]
+path = ".github/workflows/release.yml"
+template = ".github/workflows/release.yml.j2"
+
+release_notes = ["Container images are published with latest and sha-* tags.", "Add database and deployment configuration in release notes."]

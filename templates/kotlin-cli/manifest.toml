@@ -1,0 +1,55 @@
+[template]
+id = "kotlin-cli"
+kind = "kotlin-cli"
+display_name = "Kotlin CLI Tool"
+description = "Kotlin CLI tool scaffold with Gradle Kotlin DSL, kotlinx-cli, and optional native binary release."
+version = "1.0.0"
+
+[runtime]
+default = "kotlin 1.9"
+
+[commands]
+install = "./gradlew build"
+start = "./gradlew run"
+validate = "./gradlew check"
+release_prep = "./gradlew build --release"
+stack_specific = "Add CLI argument parsing and native image configuration after initial setup."
+
+checks = ["./gradlew check", "./gradlew build"]
+
+[files]
+static = [".gitignore", "gradlew", "gradlew.bat"]
+
+[[files.external]]
+path = "README.md"
+template = "README.md.j2"
+
+[[files.external]]
+path = "build.gradle.kts"
+template = "build.gradle.kts.j2"
+
+[[files.external]]
+path = "settings.gradle.kts"
+template = "settings.gradle.kts.j2"
+
+[[files.external]]
+path = "gradle.properties"
+template = "gradle.properties.j2"
+
+[[files.external]]
+path = "src/main/kotlin/Main.kt"
+template = "src/main/kotlin/Main.kt.j2"
+
+[[files.external]]
+path = "src/test/kotlin/MainTest.kt"
+template = "src/test/kotlin/MainTest.kt.j2"
+
+[[files.external]]
+path = ".github/workflows/ci.yml"
+template = ".github/workflows/ci.yml.j2"
+
+[[files.external]]
+path = ".github/workflows/release.yml"
+template = ".github/workflows/release.yml.j2"
+
+release_notes = ["Binary artifacts are published to GitHub Releases.", "Add platform-specific native image configuration in release notes."]

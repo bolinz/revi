@@ -89,6 +89,9 @@ pub enum TemplateKind {
     PythonService,
     NodeWeb,
     DesktopTauri,
+    RustWeb,
+    GoApi,
+    KotlinCli,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -177,6 +180,23 @@ impl TemplateKind {
             Self::PythonService => "python-service",
             Self::NodeWeb => "node-web",
             Self::DesktopTauri => "desktop-tauri",
+            Self::RustWeb => "rust-web",
+            Self::GoApi => "go-api",
+            Self::KotlinCli => "kotlin-cli",
+        }
+    }
+
+    /// Convert template ID string to TemplateKind
+    pub fn from_template_id(id: &str) -> TemplateKind {
+        match id {
+            "generic-project" => TemplateKind::GenericProject,
+            "python-service" => TemplateKind::PythonService,
+            "node-web" => TemplateKind::NodeWeb,
+            "desktop-tauri" => TemplateKind::DesktopTauri,
+            "rust-web" => TemplateKind::RustWeb,
+            "go-api" => TemplateKind::GoApi,
+            "kotlin-cli" => TemplateKind::KotlinCli,
+            _ => TemplateKind::GenericProject,
         }
     }
 }

@@ -1,0 +1,15 @@
+package main
+
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.default
+
+fun main(args: Array<String>) = HelloCommand().main(args)
+
+class HelloCommand : CliktCommand() {
+    private val name: String by option("-n", "--name", help = "Name to greet").default("World")
+
+    override fun run() {
+        echo("Hello, $name!")
+    }
+}

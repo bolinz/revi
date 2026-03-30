@@ -1,0 +1,55 @@
+[template]
+id = "go-api"
+kind = "go-api"
+display_name = "Go REST API"
+description = "Go REST API scaffold with Gin framework, structured logging, and optional container release workflow."
+version = "1.0.0"
+
+[runtime]
+default = "go1.21"
+
+[commands]
+install = "go mod download"
+start = "go run cmd/server/main.go"
+validate = "go test ./..."
+release_prep = "go build -o server ./cmd/server"
+stack_specific = "Add database driver and deployment configuration after initial setup."
+
+checks = ["go vet ./...", "go test ./..."]
+
+[files]
+static = [".gitignore"]
+
+[[files.external]]
+path = "README.md"
+template = "README.md.j2"
+
+[[files.external]]
+path = "go.mod"
+template = "go.mod.j2"
+
+[[files.external]]
+path = "cmd/server/main.go"
+template = "cmd/server/main.go.j2"
+
+[[files.external]]
+path = "internal/handlers/handlers.go"
+template = "internal/handlers/handlers.go.j2"
+
+[[files.external]]
+path = "internal/models/models.go"
+template = "internal/models/models.go.j2"
+
+[[files.external]]
+path = "Dockerfile"
+template = "Dockerfile.j2"
+
+[[files.external]]
+path = ".github/workflows/ci.yml"
+template = ".github/workflows/ci.yml.j2"
+
+[[files.external]]
+path = ".github/workflows/release.yml"
+template = ".github/workflows/release.yml.j2"
+
+release_notes = ["Container images are published with latest and sha-* tags.", "Add deployment configuration in release notes."]

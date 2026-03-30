@@ -1,9 +1,10 @@
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
 
 use crate::config::TemplateKind;
+use crate::manifest::TemplateSpec as TemplateSpecV2;
 
-#[derive(Clone, Debug, Deserialize)]
+/// Template manifest (normalized V1/V2 format for internal use)
+#[derive(Clone, Debug)]
 pub struct TemplateManifest {
     pub id: String,
     pub kind: TemplateKind,
@@ -14,37 +15,45 @@ pub struct TemplateManifest {
     pub release_notes: Vec<String>,
 }
 
+/// Template spec
 #[derive(Clone, Debug)]
 pub struct TemplateSpec {
     pub manifest: TemplateManifest,
+    pub is_v2: bool,
+    /// V2 manifest with file definitions (None for V1 templates)
+    pub v2_spec: Option<TemplateSpecV2>,
 }
 
+/// Load templates from V2 manifests on filesystem
 pub fn load_templates() -> Result<Vec<TemplateSpec>> {
+    let v2_templates = load_templates_v2_from_fs()?;
     let mut templates = Vec::new();
-    for (id, raw) in [
-        (
-            "generic-project",
-            include_str!("../templates/generic-project/manifest.toml"),
-        ),
-        (
-            "python-service",
-            include_str!("../templates/python-service/manifest.toml"),
-        ),
-        (
-            "node-web",
-            include_str!("../templates/node-web/manifest.toml"),
-        ),
-        (
-            "desktop-tauri",
-            include_str!("../templates/desktop-tauri/manifest.toml"),
-        ),
-    ] {
-        let manifest = toml::from_str::<TemplateManifest>(raw)
-            .with_context(|| format!("invalid manifest {id}"))?;
-        templates.push(TemplateSpec { manifest });
+
+    for spec in v2_templates {
+        let manifest = TemplateManifest {
+            id: spec.manifest.template.id.clone(),
+            kind: TemplateKind::from_template_id(&spec.manifest.template.id),
+            display_name: spec.manifest.template.display_name.clone(),
+            description: spec.manifest.template.description.clone(),
+            default_runtime: spec.manifest.runtime.default.clone(),
+            checks: spec.manifest.checks.clone(),
+            release_notes: spec.manifest.release_notes.clone(),
+        };
+        templates.push(TemplateSpec {
+            manifest,
+            is_v2: true,
+            v2_spec: Some(spec),
+        });
     }
+
     templates.sort_by(|a, b| a.manifest.id.cmp(&b.manifest.id));
     Ok(templates)
+}
+
+/// Load V2 manifests from filesystem
+fn load_templates_v2_from_fs() -> Result<Vec<TemplateSpecV2>> {
+    use crate::manifest::load_templates_from_dir;
+    load_templates_from_dir()
 }
 
 pub fn get_template(kind: TemplateKind) -> Result<TemplateSpec> {
@@ -62,10 +71,15 @@ pub fn format_template_list() -> Result<String> {
     }
     let mut out = String::new();
     for spec in templates {
-        let manifest = spec.manifest;
+        let manifest = &spec.manifest;
+        let version_tag = if spec.is_v2 { " (v2)" } else { "" };
         out.push_str(&format!(
-            "{}\n  kind: {:?}\n  runtime: {}\n  {}\n\n",
-            manifest.id, manifest.kind, manifest.default_runtime, manifest.description
+            "{}{}\n  kind: {:?}\n  runtime: {}\n  {}\n\n",
+            manifest.id,
+            version_tag,
+            manifest.kind,
+            manifest.default_runtime,
+            manifest.description
         ));
     }
     Ok(out.trim_end().to_string())

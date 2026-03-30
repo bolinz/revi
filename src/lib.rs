@@ -3,6 +3,7 @@ pub mod catalog;
 pub mod cli;
 pub mod config;
 pub mod doctor;
+pub mod manifest;
 pub mod providers;
 pub mod scaffold;
 pub mod wizard;
