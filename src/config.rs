@@ -92,6 +92,7 @@ pub enum TemplateKind {
     RustWeb,
     GoApi,
     KotlinCli,
+    Godot3DGame,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -183,6 +184,7 @@ impl TemplateKind {
             Self::RustWeb => "rust-web",
             Self::GoApi => "go-api",
             Self::KotlinCli => "kotlin-cli",
+            Self::Godot3DGame => "godot-3d-game",
         }
     }
 
@@ -196,6 +198,7 @@ impl TemplateKind {
             "rust-web" => TemplateKind::RustWeb,
             "go-api" => TemplateKind::GoApi,
             "kotlin-cli" => TemplateKind::KotlinCli,
+            "godot-3d-game" => TemplateKind::Godot3DGame,
             _ => TemplateKind::GenericProject,
         }
     }

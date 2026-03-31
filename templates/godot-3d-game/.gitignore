@@ -1,0 +1,24 @@
+# Godot 4.x specific
+.godot/
+*.pck
+*.Godot.*
+
+# Build exports (customize per platform)
+export/
+exports/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.sav
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*~
+
+# Debug
+*.log

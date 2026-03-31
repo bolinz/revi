@@ -303,5 +303,6 @@ fn template_choice_to_kind(choice: &TemplateChoice) -> TemplateKind {
         TemplateChoice::PythonService => TemplateKind::PythonService,
         TemplateChoice::NodeWeb => TemplateKind::NodeWeb,
         TemplateChoice::DesktopTauri => TemplateKind::DesktopTauri,
+        TemplateChoice::Godot3DGame => TemplateKind::Godot3DGame,
     }
 }

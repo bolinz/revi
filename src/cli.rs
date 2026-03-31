@@ -51,4 +51,5 @@ pub enum TemplateChoice {
     PythonService,
     NodeWeb,
     DesktopTauri,
+    Godot3DGame,
 }
