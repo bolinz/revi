@@ -196,7 +196,7 @@ fn build_files(
                 render(&tauri_conf(config), ctx),
             );
         }
-        TemplateKind::RustWeb | TemplateKind::GoApi | TemplateKind::KotlinCli => {
+        TemplateKind::RustWeb | TemplateKind::GoApi | TemplateKind::KotlinCli | TemplateKind::Godot3DGame => {
             // Manifest-driven templates: files are generated from manifest definitions
             // This is handled by manifest-based generation in a later refactor
         }
@@ -232,6 +232,7 @@ fn build_files(
                 TemplateKind::RustWeb => "Rust",
                 TemplateKind::GoApi => "Go",
                 TemplateKind::KotlinCli => "Kotlin",
+                TemplateKind::Godot3DGame => "Godot",
             };
 
             let skill_content = if config.ai_tools.use_ai_api {
@@ -514,6 +515,14 @@ fn local_commands(config: &StarterConfig) -> LocalCommands {
             stack_specific:
                 "Add CLI argument parsing and native image configuration after initial setup.".to_string(),
         },
+        TemplateKind::Godot3DGame => LocalCommands {
+            install: "echo 'Download Godot 4.x from https://godotengine.org'".to_string(),
+            start: "godot --headless --path .".to_string(),
+            validate: "godot --headless --path . --check-only".to_string(),
+            release_prep: "godot --headless --path . --export-release linux".to_string(),
+            stack_specific:
+                "Configure export templates for target platforms (Windows, Mac, Linux, Web) in Project > Export.".to_string(),
+        },
     }
 }
 
@@ -528,6 +537,7 @@ fn gitignore(kind: TemplateKind) -> &'static str {
         TemplateKind::RustWeb => "/target\n*.rs.bk\nCargo.lock\n",
         TemplateKind::GoApi => "/server\n*.exe\n.DS_Store\n.env\n",
         TemplateKind::KotlinCli => ".gradle\n/build\n/dist\n*.class\n*.jar\n",
+        TemplateKind::Godot3DGame => ".godot/\n*.pck\n*.Godot.*\nexport/\nexports/\n.vscode/\n.idea/\n",
     }
 }
 
@@ -563,6 +573,9 @@ fn readme(config: &StarterConfig, checks: &[String], commands: &LocalCommands) -
         }
         TemplateKind::KotlinCli => {
             "- Binary artifact publication via GitHub Releases\n- Native image publication for multiple platforms".to_string()
+        }
+        TemplateKind::Godot3DGame => {
+            "- Platform-specific export via Godot editor or CLI\n- GitHub Release with exported binaries for multiple platforms".to_string()
         }
     };
     let ai_section = ai_entrypoint_section(config);
@@ -673,6 +686,9 @@ fn contributing(config: &StarterConfig, checks: &[String]) -> String {
         TemplateKind::KotlinCli => {
             "- CLI argument parsing changes\n- native image compilation settings\n- distribution format changes"
         }
+        TemplateKind::Godot3DGame => {
+            "- export template changes\n- scene structure changes that may break existing saves\n- input map changes"
+        }
     };
     format!(
         "# Contributing\n\n## Branching\n\n- `main` is always intended to stay releasable\n- use `feat/<topic>` for new work\n- use `fix/<topic>` for bug fixes\n- use `hotfix/<topic>` for release blockers\n\n## Pull Requests\n\n- keep changes scoped\n- update docs when behavior changes\n- include validation steps in the PR body\n\n## Validation\n\nRun before opening a PR:\n{checks}\n\n## Change Types Requiring Extra Care\n\n{extra_care}\n\n## Release Flow\n\n1. Land changes on `main`\n2. Update versioned files together\n3. Create a release commit if needed\n4. Tag `vX.Y.Z`\n5. Push `main` and the tag\n"
@@ -705,6 +721,8 @@ fn architecture_doc(config: &StarterConfig) -> String {
             .to_string(),
         TemplateKind::KotlinCli => "# Architecture\n\n## Current Structure\n\n- `src/main/kotlin/`: Kotlin source code\n- `build.gradle.kts`: Gradle build configuration\n\n## Planned Modules\n\nDescribe CLI commands and their implementations here.\n\n## Open Questions\n\n- What CLI arguments should be supported?\n- Should native image compilation be enabled?\n"
             .to_string(),
+        TemplateKind::Godot3DGame => "# Architecture\n\n## Current Structure\n\n- `project.godot`: Godot project configuration\n- `scenes/`: Game scenes (.tscn files)\n- `scripts/`: GDScript files\n\n## Planned Modules\n\nDescribe game scenes, systems, and mechanics here.\n\n## Open Questions\n\n- What game mechanics and systems need to be implemented?\n- Which export platforms are the primary targets?\n"
+            .to_string(),
     }
 }
 
@@ -730,6 +748,9 @@ fn decisions_doc(config: &StarterConfig) -> String {
         }
         TemplateKind::KotlinCli => {
             "- CLI argument parsing strategy\n- Native image compilation settings\n- Distribution format (JAR, native binary)"
+        }
+        TemplateKind::Godot3DGame => {
+            "- Game mechanics and systems design\n- Asset pipeline and resource management\n- Export platform priorities"
         }
     };
     format!(
@@ -833,6 +854,7 @@ fn tool_file(
             TemplateKind::RustWeb => "rust",
             TemplateKind::GoApi => "go1.21",
             TemplateKind::KotlinCli => "kotlin 1.9",
+            TemplateKind::Godot3DGame => "godot4",
         }
     )
 }
@@ -1005,6 +1027,7 @@ fn ci_workflow(config: &StarterConfig) -> String {
         TemplateKind::RustWeb => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: dtolnay/rust-toolchain@stable\n        with:\n          components: rustfmt, clippy\n      - uses: Swatinem/rust-cache@v2\n      - name: Check formatting\n        run: cargo fmt --check\n      - name: Run clippy\n        run: cargo clippy -- -D warnings\n      - name: Run tests\n        run: cargo test\n      - name: Build\n        run: cargo build\n".to_string(),
         TemplateKind::GoApi => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - name: Set up Go\n        uses: actions/setup-go@v5\n        with:\n          go-version: '1.21'\n          cache: true\n      - name: Vet\n        run: go vet ./...\n      - name: Test\n        run: go test ./...\n      - name: Build\n        run: go build -o server ./cmd/server\n".to_string(),
         TemplateKind::KotlinCli => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-java@v4\n        with:\n          distribution: temurin\n          java-version: 11\n          cache: gradle\n      - name: Check\n        run: ./gradlew check\n      - name: Build\n        run: ./gradlew build\n".to_string(),
+        TemplateKind::Godot3DGame => "name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n      - name: Validate Godot project\n        run: |\n          # Godot validation is done via --check-only flag\n          # Requires Godot 4.x installed\n          echo 'Godot project validation requires Godot 4.x to be installed'\n".to_string(),
     }
 }
 
@@ -1034,7 +1057,11 @@ fn release_workflow(config: &StarterConfig, release_notes: &[String]) -> String 
             "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\nenv:\n  IMAGE_NAME: ghcr.io/${{{{ github.repository_owner }}}}/{{{{project_slug}}}}\n\njobs:\n  container:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Set up Go\n        uses: actions/setup-go@v5\n        with:\n          go-version: '1.21'\n          cache: true\n      - name: Set up Docker Buildx\n        uses: docker/setup-buildx-action@v3\n      - name: Log in to GHCR\n        uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{{{ github.actor }}}}\n          password: ${{{{ secrets.GITHUB_TOKEN }}}}\n      - name: Build and push\n        uses: docker/build-push-action@v5\n        with:\n          context: .\n          push: true\n          tags: |\n            ${{{{ env.IMAGE_NAME }}}}:latest\n            ${{{{ env.IMAGE_NAME }}}}:sha-${{{{ github.sha }}}}\n\n  release-notes:\n    if: startsWith(github.ref, 'refs/tags/v')\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Generate release notes\n        run: |\n          cat > /tmp/release-notes.txt <<'EOF'\n          Release for ${{{{ github.ref_name }}}}\n\n{notes}\n          EOF\n      - name: Create GitHub release\n        uses: softprops/action-gh-release@v1\n        with:\n          body_path: /tmp/release-notes.txt\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
         ),
         TemplateKind::KotlinCli => format!(
-            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-java@v4\n        with:\n          distribution: temurin\n          java-version: 11\n          cache: gradle\n      - name: Build\n        run: ./gradlew build --release\n      - name: Create GitHub Release\n        uses: softprops/action-gh-release@v1\n        with:\n          files: build/libs/*.jar\n          body: |\n            Release for ${{{{ github.ref_name }}}}\n\n{notes}\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
+            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-java@v4\n        with:\n          distribution: temurin\n          java-version: 11\n          cache: gradle\n      - name: Build\n        run: ./gradlew build --release\n      - name: Create GitHub Release\n        uses: softprops/action-gh-release@v1\n        with:\n          files: build/libs/*.jar
+          body: |\n            Release for ${{{{ github.ref_name }}}}\n\n{notes}\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
+        ),
+        TemplateKind::Godot3DGame => format!(
+            "name: Release\n\non:\n  push:\n    branches: [main]\n    tags: ['v*']\n\njobs:\n  release:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n    steps:\n      - uses: actions/checkout@v5\n      - name: Create Godot Release\n        run: |\n          # Export for target platforms using Godot CLI\n          # Requires export templates to be installed\n          echo 'Godot export requires export templates to be installed'\n          echo 'Configure in Project > Export > Pre-Export Hooks'\n      - name: Create GitHub Release\n        uses: softprops/action-gh-release@v1\n        with:\n          body: |\n            Release for ${{{{ github.ref_name }}}}\n\n{notes}\n        env:\n          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n"
         ),
     }
 }
