@@ -209,10 +209,16 @@ renderer/rendering_method="forward_plus"
 
 [[files.inline]]
 path = "scenes/main.tscn"
-content = """[gd_scene load_steps=3 format=3 uid="uid://main_scene"]
+content = """[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="PackedScene" uid="uid://player" path="res://scenes/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_main_ground"]
+size = Vector3(100, 2, 100)
+
+[sub_resource type="BoxMesh" id="BoxMesh3D_main_ground_mesh"]
+size = Vector3(100, 2, 100)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -246,12 +252,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_main_ground"]
-size = Vector3(100, 2, 100)
-
-[sub_resource type="BoxMesh" id="BoxMesh3D_main_ground_mesh"]
-size = Vector3(100, 2, 100)
 """
 
 [[files.inline]]
@@ -284,9 +284,17 @@ func _input(event):
 
 [[files.inline]]
 path = "scenes/player.tscn"
-content = """[gd_scene load_steps=2 format=3 uid="uid://player"]
+content = """[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.5
+height = 2.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.5
+height = 2.0
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")
@@ -303,14 +311,6 @@ mesh = SubResource("CapsuleMesh_player")
 
 [node name="CameraPosition" type="Marker3D" parent="Pivot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
-
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
-radius = 0.5
-height = 2.0
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
-radius = 0.5
-height = 2.0
 """
 
 [[files.inline]]
@@ -374,9 +374,27 @@ func _process(_delta):
 
 [[files.inline]]
 path = "scenes/world.tscn"
-content = """[gd_scene load_steps=2 format=3 uid="uid://world"]
+content = """[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/world.gd" id="1_world"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(50, 0.1, 50)
+
+[sub_resource type="BoxMesh" id="BoxMesh3D_floor"]
+size = Vector3(50, 0.1, 50)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_obstacle1"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh3D_obstacle1"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_obstacle2"]
+size = Vector3(3, 1, 3)
+
+[sub_resource type="BoxMesh" id="BoxMesh3D_obstacle2"]
+size = Vector3(3, 1, 3)
 
 [node name="World" type="Node3D"]
 script = ExtResource("1_world")
@@ -407,24 +425,6 @@ shape = SubResource("BoxShape3D_obstacle2")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle2"]
 mesh = SubResource("BoxMesh3D_obstacle2")
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
-size = Vector3(50, 0.1, 50)
-
-[sub_resource type="BoxMesh" id="BoxMesh3D_floor"]
-size = Vector3(50, 0.1, 50)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_obstacle1"]
-size = Vector3(2, 2, 2)
-
-[sub_resource type="BoxMesh" id="BoxMesh3D_obstacle1"]
-size = Vector3(2, 2, 2)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_obstacle2"]
-size = Vector3(3, 1, 3)
-
-[sub_resource type="BoxMesh" id="BoxMesh3D_obstacle2"]
-size = Vector3(3, 1, 3)
 """
 
 [[files.inline]]
