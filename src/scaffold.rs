@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{
     catalog::get_template,
-    config::{StarterConfig, TemplateKind, write_if_changed},
+    config::{AgentKind, StarterConfig, TemplateKind, write_if_changed},
     manifest::TemplateSpec as TemplateSpecV2,
     providers::{create_provider, AgentContext, SkillContext},
 };
@@ -212,13 +212,14 @@ fn build_files(
         if config.ai_tools.tool_docs {
             files.insert("docs/AI_TOOLS.md".to_string(), ai_tools_doc(config, &commands));
         }
-        if config.ai_tools.codex {
+        let selected = &config.ai_tools.selected_agents;
+        if selected.contains(&AgentKind::Codex) {
             files.insert("AGENTS.md".to_string(), agents_md(config, &commands));
         }
-        if config.ai_tools.claude_code {
+        if selected.contains(&AgentKind::ClaudeCode) {
             files.insert("CLAUDE.md".to_string(), claude_md(config, &commands));
         }
-        if config.ai_tools.gemini_cli {
+        if selected.contains(&AgentKind::GeminiCli) {
             files.insert("GEMINI.md".to_string(), gemini_md(config, &commands));
         }
         if config.ai_tools.skills {
@@ -631,13 +632,14 @@ fn ai_entrypoint_section(config: &StarterConfig) -> String {
     }
 
     let mut files = Vec::new();
-    if config.ai_tools.codex {
+    let selected = &config.ai_tools.selected_agents;
+    if selected.contains(&AgentKind::Codex) {
         files.push("- `AGENTS.md`: Codex entrypoint");
     }
-    if config.ai_tools.claude_code {
+    if selected.contains(&AgentKind::ClaudeCode) {
         files.push("- `CLAUDE.md`: Claude Code memory");
     }
-    if config.ai_tools.gemini_cli {
+    if selected.contains(&AgentKind::GeminiCli) {
         files.push("- `GEMINI.md`: Gemini CLI context");
     }
     if config.ai_tools.tool_docs {
@@ -760,13 +762,14 @@ fn decisions_doc(config: &StarterConfig) -> String {
 
 fn ai_tools_doc(config: &StarterConfig, commands: &LocalCommands) -> String {
     let mut tools = Vec::new();
-    if config.ai_tools.codex {
+    let selected = &config.ai_tools.selected_agents;
+    if selected.contains(&AgentKind::Codex) {
         tools.push("- Codex reads `AGENTS.md`");
     }
-    if config.ai_tools.claude_code {
+    if selected.contains(&AgentKind::ClaudeCode) {
         tools.push("- Claude Code reads `CLAUDE.md`");
     }
-    if config.ai_tools.gemini_cli {
+    if selected.contains(&AgentKind::GeminiCli) {
         tools.push("- Gemini CLI reads `GEMINI.md`");
     }
     let docs = if should_emit_project_context(config) {
@@ -897,12 +900,30 @@ fn skill_md(skill_name: &str, description: &str, commands: &[(&str, &str)]) -> S
         r#"---
 name: {skill_name}
 description: {description}
-allowed-tools: Bash,Read,Edit,Write,Glob,Grep
+allowed-tools: Bash,Read,Edit,Write,Glob,Grep,TaskCreate,TaskUpdate,TaskList
 ---
 
 # {skill_name}
 
+{description}
+
+## Commands
+
 {commands_section}
+
+## Guidelines
+
+- Always verify changes before committing
+- Run validation commands after making changes
+- Update this skill file if command patterns change
+- Follow project-specific conventions documented in CLAUDE.md
+
+## Best Practices
+
+1. Use the appropriate command for your task
+2. Check validation output before marking tasks complete
+3. Consult PROJECT_BRIEF.md and ARCHITECTURE.md for project context
+4. Update DECISIONS.md when making significant technical choices
 "#,
         skill_name = skill_name,
         description = description,
@@ -920,7 +941,32 @@ type: agent
 
 # Agent: {agent_name}
 
-{instructions}
+{description}
+
+## Role
+
+This agent specializes in: {instructions}
+
+## Interaction Patterns
+
+- When receiving a task, first understand the scope using Glob and Grep
+- Read relevant files to understand existing patterns
+- Plan changes before implementing
+- Validate changes before completing the task
+
+## Git Workflow
+
+- Create feature branches: `feat/<name>`
+- Use descriptive commit messages
+- Keep changes focused and atomic
+- Run validation before marking complete
+
+## Guidelines
+
+1. Always read PROJECT_BRIEF.md first for project context
+2. Follow existing code patterns in ARCHITECTURE.md
+3. Update DECISIONS.md when making technical choices
+4. Ensure all tests pass before completing tasks
 "#,
         agent_name = agent_name,
         description = description,
@@ -1071,9 +1117,9 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::config::{
-        AiToolsConfig, BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig,
-        ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind,
-        WorkflowConfig,
+        AgentKind, AiToolsConfig, BootstrapConfig, BranchStrategy, GenericTemplateConfig,
+        GithubConfig, ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig,
+        TemplateKind, WorkflowConfig,
     };
 
     use super::scaffold;
@@ -1212,7 +1258,7 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let target = temp.path().join("python-no-gemini");
         let mut config = test_config(target.clone(), TemplateKind::PythonService, false);
-        config.ai_tools.gemini_cli = false;
+        config.ai_tools.selected_agents = vec![AgentKind::Codex, AgentKind::ClaudeCode];
         scaffold(&config).expect("scaffold");
         assert!(target.join("AGENTS.md").exists());
         assert!(target.join("CLAUDE.md").exists());

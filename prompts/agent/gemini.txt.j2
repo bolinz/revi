@@ -1,0 +1,37 @@
+Generate a GEMINI.md entry for a Gemini CLI agent with the following specifications:
+
+## Agent Name
+{{ agent_name }}
+
+## Description
+{{ description }}
+
+## Tasks
+{% for task in tasks %}
+- {{ task }}
+{% endfor %}
+
+## Project Context
+- Project Type: {{ project_type }}
+- Template: {{ template_kind }}
+- Runtime: {{ default_runtime }}
+
+## Requirements
+
+1. Write the GEMINI.md content in English with proper Markdown formatting
+2. Structure the content as:
+   - Agent role and responsibilities
+   - Task-specific guidance
+   - Project conventions for {{ project_type }}
+   - Git workflow appropriate for {{ template_kind }} template
+
+3. Include relevant project commands:
+   - Install: `{{ install_command }}`
+   - Start: `{{ start_command }}`
+   - Validate: `{{ validate_command }}`
+
+4. Make instructions specific to {{ project_type }} projects
+5. Follow Google Gemini CLI conventions
+6. Do NOT use generic placeholder text
+
+Output ONLY the complete GEMINI.md agent section content, no explanations or preamble.

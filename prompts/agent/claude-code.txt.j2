@@ -1,0 +1,37 @@
+Generate a Claude Code agent SKILL.md file with the following specifications:
+
+## Agent Name
+{{ agent_name }}
+
+## Description
+{{ description }}
+
+## Tasks
+{% for task in tasks %}
+- {{ task }}
+{% endfor %}
+
+## Project Context
+- Project Type: {{ project_type }}
+- Template: {{ template_kind }}
+- Runtime: {{ default_runtime }}
+
+## Requirements
+
+1. Write the SKILL.md in English with proper Markdown formatting
+2. Include YAML frontmatter with:
+   - name: agent identifier (use kebab-case)
+   - description: brief description of what this agent does
+   - type: agent
+
+3. Structure the content as:
+   - Brief introduction explaining the agent's role
+   - Detailed instructions for each task
+   - Guidelines for when to use this agent
+   - Interaction patterns with other agents
+
+4. Make instructions specific to {{ project_type }} projects
+5. Include git workflow guidelines appropriate for the project type
+6. Do NOT use generic placeholder text
+
+Output ONLY the complete SKILL.md content, no explanations or preamble.

@@ -32,6 +32,8 @@ pub struct InitArgs {
     pub template: Option<TemplateChoice>,
     #[arg(long)]
     pub non_interactive: bool,
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]

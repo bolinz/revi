@@ -1,0 +1,34 @@
+Generate a SKILL.md file for a Claude Code skill with the following specifications:
+
+## Skill Name
+{{ skill_name }}
+
+## Description
+{{ description }}
+
+## Project Type
+{{ project_type }}
+
+## Available Commands
+{% for command, label in commands %}
+- {{ label }}: `{{ command }}`
+{% endfor %}
+
+## Requirements
+
+1. Write the SKILL.md in English with proper Markdown formatting
+2. Include YAML frontmatter with:
+   - name: skill identifier (use kebab-case)
+   - description: brief description of what this skill does
+   - allowed-tools: list of allowed Claude Code tools for this skill
+
+3. Structure the content as:
+   - Brief introduction explaining the skill's purpose
+   - Command section with all available commands
+   - Best practices for using this skill
+   - Common pitfalls to avoid
+
+4. Make the content project-specific and actionable
+5. Do NOT use placeholder text like "add your commands here" - use the actual commands provided
+
+Output ONLY the complete SKILL.md content, no explanations or preamble.

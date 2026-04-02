@@ -1,0 +1,38 @@
+Generate an AGENTS.md entry for a Codex agent with the following specifications:
+
+## Agent Name
+{{ agent_name }}
+
+## Description
+{{ description }}
+
+## Tasks
+{% for task in tasks %}
+- {{ task }}
+{% endfor %}
+
+## Project Context
+- Project Type: {{ project_type }}
+- Template: {{ template_kind }}
+- Runtime: {{ default_runtime }}
+
+## Requirements
+
+1. Write the AGENTS.md section in English with proper Markdown formatting
+2. Include a clear header with the agent name and purpose
+3. Structure the content as:
+   - Agent overview and responsibilities
+   - Detailed task instructions
+   - Project-specific conventions to follow
+   - Git workflow guidelines
+
+4. Make instructions specific to {{ project_type }} projects and {{ template_kind }} template
+5. Include relevant commands for the project type:
+   - Install commands: {{ install_command }}
+   - Start commands: {{ start_command }}
+   - Validate commands: {{ validate_command }}
+
+6. Follow OpenAI Codex AGENTS.md conventions
+7. Do NOT use generic placeholder text
+
+Output ONLY the complete AGENTS.md agent section content, no explanations or preamble.

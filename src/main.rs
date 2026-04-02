@@ -14,6 +14,13 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Init(args) => {
             let config = resolve_config(&args)?;
+            if args.dry_run {
+                println!("[DRY RUN] Would scaffold to: {}", config.project.path.display());
+                println!("[DRY RUN] Project: {} ({})", config.project.name, config.project.slug);
+                println!("[DRY RUN] Template: {}", config.project.template.template_id());
+                println!("[DRY RUN] Dry run complete - no files created");
+                return Ok(());
+            }
             let project_dir = scaffold(&config)?;
             let report = bootstrap::run(&project_dir, &config)?;
             println!("Scaffolded {}", project_dir.display());

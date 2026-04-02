@@ -7,8 +7,8 @@ use crate::{
     catalog::load_templates,
     cli::{InitArgs, TemplateChoice},
     config::{
-        AiToolsConfig, BootstrapConfig, BranchStrategy, GenericTemplateConfig, GithubConfig,
-        ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind,
+        AiToolsConfig, AgentKind, BootstrapConfig, BranchStrategy, GenericTemplateConfig,
+        GithubConfig, ProjectConfig, ReleaseChannel, ReleaseConfig, StarterConfig, TemplateKind,
         WorkflowConfig,
     },
 };
@@ -56,12 +56,33 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
     };
     let template = templates[template_index].manifest.kind;
 
-    let name = match &args.name {
-        Some(name) => name.clone(),
-        None => Input::<String>::with_theme(&theme)
-            .with_prompt("Project name")
-            .interact_text()?,
+    // Validate and get project name
+    let name = loop {
+        let input = match &args.name {
+            Some(name) => name.clone(),
+            None => Input::<String>::with_theme(&theme)
+                .with_prompt("Project name")
+                .interact_text()?,
+        };
+
+        // Validate name
+        if input.trim().is_empty() {
+            eprintln!("Error: Project name cannot be empty");
+            if args.name.is_some() {
+                return Err(anyhow!("Invalid project name: empty"));
+            }
+            continue;
+        }
+        if input.contains(' ') {
+            eprintln!("Error: Project name cannot contain spaces");
+            if args.name.is_some() {
+                return Err(anyhow!("Invalid project name: contains spaces"));
+            }
+            continue;
+        }
+        break input;
     };
+
     let slug_default = slugify(&name);
     let slug = Input::<String>::with_theme(&theme)
         .with_prompt("Repository slug")
@@ -136,20 +157,30 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
         "minimax".to_string()
     };
     let ai_tools = if ai_tools_enabled {
+        let agent_options = vec!["Codex", "Claude Code", "Gemini CLI"];
+        let agent_defaults = vec![true, true, true];
+        let selected_agent_indices = dialoguer::MultiSelect::with_theme(&theme)
+            .with_prompt("Select AI agents to adapt (space to select, enter to confirm)")
+            .items(&agent_options)
+            .defaults(&agent_defaults)
+            .interact()?
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        let selected_agents: Vec<AgentKind> = selected_agent_indices
+            .iter()
+            .filter(|&&i| i < 3)
+            .map(|&i| match i {
+                0 => AgentKind::Codex,
+                1 => AgentKind::ClaudeCode,
+                2 => AgentKind::GeminiCli,
+                _ => AgentKind::Codex,
+            })
+            .collect();
+
         AiToolsConfig {
             enabled: true,
-            codex: Confirm::with_theme(&theme)
-                .with_prompt("Generate AGENTS.md for Codex?")
-                .default(true)
-                .interact()?,
-            claude_code: Confirm::with_theme(&theme)
-                .with_prompt("Generate CLAUDE.md for Claude Code?")
-                .default(true)
-                .interact()?,
-            gemini_cli: Confirm::with_theme(&theme)
-                .with_prompt("Generate GEMINI.md for Gemini CLI?")
-                .default(true)
-                .interact()?,
+            selected_agents,
             tool_docs: Confirm::with_theme(&theme)
                 .with_prompt("Generate docs/AI_TOOLS.md and shared AI tool guidance?")
                 .default(true)
@@ -198,10 +229,10 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
         GenericTemplateConfig::default()
     };
 
-    Ok(StarterConfig {
+    let config = StarterConfig {
         schema_version: 1,
         project: ProjectConfig {
-            name,
+            name: name.clone(),
             slug: slug.clone(),
             template,
             path: PathBuf::from(target_path),
@@ -230,7 +261,75 @@ fn run_wizard(args: &InitArgs) -> Result<StarterConfig> {
             codeowners,
         },
         generic,
-    })
+    };
+
+    // Show confirmation summary
+    let summary = format_config_summary(&config);
+    println!("\n--- Configuration Summary ---");
+    println!("{}", summary);
+    println!("----------------------------");
+
+    let confirmed = Confirm::with_theme(&theme)
+        .with_prompt("Proceed with scaffolding?")
+        .default(true)
+        .interact()?;
+
+    if !confirmed {
+        return Err(anyhow!("Scaffolding cancelled by user"));
+    }
+
+    Ok(config)
+}
+
+fn format_config_summary(config: &StarterConfig) -> String {
+    let mut lines = Vec::new();
+    lines.push(format!("Project: {} ({})", config.project.name, config.project.slug));
+    lines.push(format!("Template: {}", config.project.template.template_id()));
+    lines.push(format!("Path: {}", config.project.path.display()));
+    lines.push(format!("Description: {}", config.project.description));
+
+    if config.github.enabled {
+        lines.push("GitHub: enabled".to_string());
+        if config.github.create_repo {
+            lines.push(format!("  - Create repo for: {}", config.github.owner.clone().unwrap_or_default()));
+        }
+        if config.github.codeowners {
+            lines.push("  - CODEOWNERS: yes".to_string());
+        }
+    } else {
+        lines.push("GitHub: disabled".to_string());
+    }
+
+    if config.ai_tools.enabled {
+        let agent_names: Vec<&str> = config.ai_tools.selected_agents
+            .iter()
+            .map(|a| a.display_name())
+            .collect();
+        lines.push(format!("AI Tools: enabled ({})", agent_names.join(", ")));
+        if config.ai_tools.use_ai_api {
+            lines.push(format!("  - AI Provider: {}", config.ai_tools.ai_provider));
+        }
+        if config.ai_tools.skills {
+            lines.push("  - Skills: yes".to_string());
+        }
+        if config.ai_tools.agents {
+            lines.push("  - Agents: yes".to_string());
+        }
+    } else {
+        lines.push("AI Tools: disabled".to_string());
+    }
+
+    if config.project.template == TemplateKind::GenericProject {
+        lines.push("Generic options:".to_string());
+        if config.generic.agent_context_files {
+            lines.push("  - Agent context files: yes".to_string());
+        }
+        if config.generic.scripts_dir {
+            lines.push("  - Scripts directory: yes".to_string());
+        }
+    }
+
+    lines.join("\n")
 }
 
 fn build_non_interactive(args: &InitArgs) -> Result<StarterConfig> {

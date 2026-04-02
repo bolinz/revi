@@ -58,9 +58,7 @@ pub struct GithubConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiToolsConfig {
     pub enabled: bool,
-    pub codex: bool,
-    pub claude_code: bool,
-    pub gemini_cli: bool,
+    pub selected_agents: Vec<AgentKind>,
     pub tool_docs: bool,
     pub command_helpers: bool,
     pub skills: bool,
@@ -73,6 +71,33 @@ pub struct AiToolsConfig {
 fn default_provider() -> String {
     "minimax".to_string()
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AgentKind {
+    Codex,
+    ClaudeCode,
+    GeminiCli,
+}
+
+impl AgentKind {
+    pub fn file_name(&self) -> &'static str {
+        match self {
+            AgentKind::Codex => "AGENTS.md",
+            AgentKind::ClaudeCode => "CLAUDE.md",
+            AgentKind::GeminiCli => "GEMINI.md",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            AgentKind::Codex => "Codex",
+            AgentKind::ClaudeCode => "Claude Code",
+            AgentKind::GeminiCli => "Gemini CLI",
+        }
+    }
+}
+
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GenericTemplateConfig {
@@ -137,9 +162,7 @@ impl Default for AiToolsConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            codex: true,
-            claude_code: true,
-            gemini_cli: true,
+            selected_agents: vec![AgentKind::Codex, AgentKind::ClaudeCode, AgentKind::GeminiCli],
             tool_docs: true,
             command_helpers: true,
             skills: true,
